@@ -1,0 +1,61 @@
+{
+  "bridge": {
+    "version": "0.1.0",
+    "protocolVersion": 1,
+    "deadline": "2026-11-08T22:00:00+00:00"
+  },
+  "site": {
+    "siteUrl": "https://example.com",
+    "homeUrl": "https://example.com",
+    "name": "Example",
+    "multisite": false,
+    "locale": "en_US",
+    "timezone": "America/Los_Angeles",
+    "environment": "production"
+  },
+  "wordpress": { "version": "7.1.3" },
+  "php": {
+    "version": "8.3.36",
+    "sapi": "fpm-fcgi",
+    "extensions": ["core", "curl", "json", "mysqli", "zip"],
+    "memoryLimit": 536870912,
+    "maxExecutionTime": 60,
+    "uploadMaxFilesize": 536870912,
+    "postMaxSize": 536870912
+  },
+  "server": {
+    "software": "nginx/1.26.0",
+    "time": "2026-11-08T20:00:00+00:00"
+  },
+  "database": {
+    "engine": "mariadb",
+    "version": "11.4.13",
+    "serverInfo": "11.4.13-MariaDB-ubu2404",
+    "charset": "utf8mb4",
+    "collate": "utf8mb4_unicode_ci",
+    "tablePrefix": "wp_"
+  },
+  "theme": {
+    "stylesheet": "KolAmi",
+    "template": "alante",
+    "name": "Kol Ami",
+    "version": "1.0.7"
+  },
+  "plugins": [
+    { "file": "wpsync-bridge/wpsync-bridge.php", "name": "wpsync bridge", "version": "0.1.0", "active": true }
+  ],
+  "muPlugins": [],
+  "dropins": [],
+  "paths": {
+    "abspath": "/home/site/htdocs/example.com/",
+    "contentDir": "/home/site/htdocs/example.com/wp-content",
+    "pluginsDir": "/home/site/htdocs/example.com/wp-content/plugins",
+    "uploadsDir": "/home/site/htdocs/example.com/wp-content/uploads"
+  },
+  "capabilities": {
+    "fileModsAllowed": true,
+    "filesystemMethod": "direct",
+    "writable": { "abspath": true, "contentDir": true, "uploadsDir": true },
+    "diskFreeBytes": 40000000000
+  }
+}

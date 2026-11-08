@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "bridge": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "protocolVersion": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        }
+      },
+      "required": [
+        "version",
+        "protocolVersion",
+        "deadline"
+      ],
+      "additionalProperties": false
+    },
+    "site": {
+      "type": "object",
+      "properties": {
+        "siteUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "homeUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "name": {
+          "type": "string"
+        },
+        "multisite": {
+          "type": "boolean"
+        },
+        "locale": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "siteUrl",
+        "homeUrl",
+        "name",
+        "multisite",
+        "locale",
+        "timezone",
+        "environment"
+      ],
+      "additionalProperties": false
+    },
+    "wordpress": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "php": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "sapi": {
+          "type": "string"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "memoryLimit": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maxExecutionTime": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "uploadMaxFilesize": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "postMaxSize": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "version",
+        "sapi",
+        "extensions",
+        "memoryLimit",
+        "maxExecutionTime",
+        "uploadMaxFilesize",
+        "postMaxSize"
+      ],
+      "additionalProperties": false
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "software": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        }
+      },
+      "required": [
+        "software",
+        "time"
+      ],
+      "additionalProperties": false
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": [
+            "mariadb",
+            "mysql",
+            "unknown"
+          ]
+        },
+        "version": {
+          "type": "string"
+        },
+        "serverInfo": {
+          "type": "string"
+        },
+        "charset": {
+          "type": "string"
+        },
+        "collate": {
+          "type": "string"
+        },
+        "tablePrefix": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine",
+        "version",
+        "serverInfo",
+        "charset",
+        "collate",
+        "tablePrefix"
+      ],
+      "additionalProperties": false
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "stylesheet": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "stylesheet",
+        "template",
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "file",
+          "name",
+          "version",
+          "active"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "muPlugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "name",
+          "version"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "dropins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "paths": {
+      "type": "object",
+      "properties": {
+        "abspath": {
+          "type": "string"
+        },
+        "contentDir": {
+          "type": "string"
+        },
+        "pluginsDir": {
+          "type": "string"
+        },
+        "uploadsDir": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "abspath",
+        "contentDir",
+        "pluginsDir",
+        "uploadsDir"
+      ],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "fileModsAllowed": {
+          "type": "boolean"
+        },
+        "filesystemMethod": {
+          "type": "string"
+        },
+        "writable": {
+          "type": "object",
+          "properties": {
+            "abspath": {
+              "type": "boolean"
+            },
+            "contentDir": {
+              "type": "boolean"
+            },
+            "uploadsDir": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "abspath",
+            "contentDir",
+            "uploadsDir"
+          ],
+          "additionalProperties": false
+        },
+        "diskFreeBytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "fileModsAllowed",
+        "filesystemMethod",
+        "writable",
+        "diskFreeBytes"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "bridge",
+    "site",
+    "wordpress",
+    "php",
+    "server",
+    "database",
+    "theme",
+    "plugins",
+    "muPlugins",
+    "dropins",
+    "paths",
+    "capabilities"
+  ],
+  "additionalProperties": false
+}

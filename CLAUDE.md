@@ -3,7 +3,16 @@
 Pull a live WordPress site into local DDEV, work on it, publish it back to replace live,
 with only a WordPress admin login (no hosting access, no paid migration plugin).
 
-**Status: design drafted 2026-11-08 in `docs/design.md` (read it first). Next: build, in the order in its section 13.**
+**Status: design in `docs/design.md` (read it first). Build step 1 of its section 13 is done
+(protocol + bridge `info` + contract harness, 2026-11-08). Next: step 2, `wpsync connect`.**
+
+- `packages/protocol` is the single source of truth. Change it there, run `pnpm generate`
+  (writes the bridge's `includes/protocol.php` and `json-schema/`), then update the PHP until
+  `pnpm test:contract` passes.
+- `pnpm test` runs unit tests; `pnpm test:contract` (needs Docker and DDEV) starts the
+  `wpsync-harness` DDEV site in `packages/bridge-plugin/test/harness/site/` and runs the real
+  bridge against the schemas. Stop it with `pnpm --filter @wp-dev-automation/bridge-plugin harness:stop`.
+- The bridge targets PHP 7.4+: no PHP 8-only syntax (match, union types, nullsafe, named args).
 
 Planned layout (Turborepo, per the owner's global rules):
 

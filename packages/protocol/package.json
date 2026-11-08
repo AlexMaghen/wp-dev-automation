@@ -1,0 +1,24 @@
+{
+  "name": "@wp-dev-automation/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contract between the wpsync CLI and the wpsync-bridge WordPress plugin: routes, constants, request and response schemas.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "wp-dev-automation",
+  "private": true,
+  "description": "Pull live WordPress sites into DDEV, work on them with Claude Code, publish them back with only an admin login.",
+  "packageManager": "pnpm@11.28.8",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "generate": "turbo run generate",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:contract": "turbo run test:contract",
+    "build": "turbo run build"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.10"
+  }
+}

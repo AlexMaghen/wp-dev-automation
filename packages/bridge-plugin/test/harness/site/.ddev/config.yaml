@@ -1,0 +1,14 @@
+# Throwaway WordPress site that plays the "live" site in contract tests.
+# Only this file is committed; test/harness/global-setup.ts builds the rest.
+name: wpsync-harness
+type: wordpress
+docroot: wp
+php_version: "8.3"
+webserver_type: nginx-fpm
+database:
+  type: mariadb
+  version: "11.4"
+# Lets the bridge answer over plain HTTP here (it requires HTTPS everywhere else), so the tests
+# don't depend on the mkcert certificate authority being installed.
+web_environment:
+  - WP_ENVIRONMENT_TYPE=local
