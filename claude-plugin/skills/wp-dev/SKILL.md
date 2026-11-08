@@ -44,8 +44,9 @@ before any wpsync command:
      check it" dialog. Then make Homebrew usable (see "Homebrew right after installing it" in
      step 2) and install Bun as above.
 
-Tell the developer in one line that this is the first prerequisite, and that `wpsync doctor
---local` will check the rest in step 2.
+If wpsync runs, say nothing about it and go on. Only if you had to install Bun, tell the
+developer in one line that this was the first prerequisite, and that `wpsync doctor --local` will
+check the rest in step 2.
 
 ## Where are we?
 
@@ -68,8 +69,14 @@ with finished steps ticked, and start a "Setup" chapter.
 
 ### 1. Start gate: two things only the developer can do
 
-Remind them up front that two steps are theirs: choosing the folder this session works in, and
-(if they want) letting you work without asking permission each time.
+**Your first message is short and ends with the one question.** Don't list rules, versions or
+what's installed; don't repeat the status. Say it like this:
+
+> Let's set up a local copy of your WordPress site. It goes in two short parts: first I make a
+> folder for the site, then you open a new Claude Code session in that folder and we carry on
+> there. You won't repeat anything: the new session picks up where this one stops.
+>
+> What's the live site's address? For example, `https://example.com`.
 
 1. Ask in the chat for the **site's address** (only that, nothing else yet).
 2. **Ask** (one dialog, two questions):
@@ -90,7 +97,9 @@ Remind them up front that two steps are theirs: choosing the folder this session
    - **Terminal:** `cd <folder> && claude` (for "without asking":
      `claude --dangerously-skip-permissions`).
 
-   Then they say **"continue my wp-dev project"** there. Stop here.
+   Then they say **"continue my wp-dev project"** there. Say plainly that this **won't start
+   over**: the new session sees the folder is already set up and goes straight on to checking
+   the Mac. Stop here.
 
 If you're in a folder that isn't this site's project, repeat the gate instead of setting up
 somewhere else. You can't detect the permission mode. The first time you resume in the new
