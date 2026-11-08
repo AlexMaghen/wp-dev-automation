@@ -32,3 +32,30 @@ export const PLUGIN_ROUTE = "/wp/v2/plugins/wpsync-bridge/wpsync-bridge";
 export async function setBridgeActive(active: boolean): Promise<{ status: number; body: unknown }> {
   return rest(PLUGIN_ROUTE, { method: "PUT", body: { status: active ? "active" : "inactive" } });
 }
+
+/** A call with a raw body (application/octet-stream) and query parameters. */
+export async function restRaw(
+  path: string,
+  options: { method?: string; query?: Record<string, string>; bytes?: Uint8Array },
+): Promise<{ status: number; body: unknown }> {
+  const { baseUrl, adminAuth } = inject("harness");
+  const url = new URL(`${baseUrl}/wp-json${path}`);
+  for (const [key, value] of Object.entries(options.query ?? {})) url.searchParams.set(key, value);
+  const response = await fetch(url, {
+    method: options.method ?? "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Basic ${Buffer.from(adminAuth).toString("base64")}`,
+      "Content-Type": "application/octet-stream",
+    },
+    body: options.bytes,
+  });
+  const text = await response.text();
+  let body: unknown = text;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    // Keep the text.
+  }
+  return { status: response.status, body };
+}

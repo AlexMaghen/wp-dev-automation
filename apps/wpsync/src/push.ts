@@ -240,7 +240,14 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
       method: "POST",
       body: { dbBytes: plan.database.bytes, filesBytes: plan.files.uploadBytes, includeHtaccess },
     });
+    // Record the push now, not when it's done: if wpsync itself dies part-way (laptop closed,
+    // network gone), `wpsync rollback` must still know which push to undo.
+    const pushedAt = now().toISOString();
+    const { lastPush: _previous, ...withoutPush } = meta;
+    project.write({ ...withoutPush, lastPush: { at: pushedAt, stageId: stage.stageId, finalized: false } });
+    const clearPush = () => project.write(withoutPush);
     let applied = false;
+    let rolledBack = false;
     try {
       log("Preparing the local copy for live…");
       const db = exportDatabase(project, stage.newPrefix, toLiveReplacements(meta.siteUrl!, meta.homeUrl, meta.localUrl!), log);
@@ -257,6 +264,7 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
       if (result.step !== "applied") {
         log(`Publishing failed: ${result.error ?? "unknown error"}. Rolling back…`);
         await runSteps(rest, ROUTES.rollback, { stage: stage.stageId }, log);
+        rolledBack = true;
         throw new WpsyncError("push_failed", `Publishing failed and live was put back as it was: ${result.error ?? "unknown error"}`);
       }
       applied = true;
@@ -268,19 +276,28 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
       if (broken.length) {
         log("Live pages aren't loading properly. Rolling back…");
         await runSteps(rest, ROUTES.rollback, { stage: stage.stageId }, log);
+        rolledBack = true;
         throw new WpsyncError(
           "push_broke_site",
           `The published site didn't load properly, so wpsync put the old one back:\n${broken.map((c) => `  ${c.url} (HTTP ${c.status})`).join("\n")}`,
           "Check those pages locally (ddev logs shows PHP errors), fix, and publish again.",
         );
       }
-      project.write({ ...meta, lastPush: { at: now().toISOString(), stageId: stage.stageId, finalized: false } });
       return { plan, applied: true, stageId: stage.stageId, checks, skipped: result.skipped, backupDir };
     } catch (error) {
-      if (!applied) {
-        // Never got as far as changing live: discard the stage. (Failures after changes were
-        // already rolled back above.)
-        await runSteps(rest, ROUTES.finalize, { stage: stage.stageId }, () => {}).catch(() => {});
+      if (rolledBack) {
+        clearPush();
+      } else if (!applied) {
+        // Discard the stage. The bridge refuses if live was already changed; then the push stays
+        // recorded, and the error below tells the developer to run wpsync rollback.
+        const discarded = await runSteps(rest, ROUTES.finalize, { stage: stage.stageId }, () => {}).then(
+          () => true,
+          () => false,
+        );
+        if (discarded) clearPush();
+        else if (error instanceof WpsyncError) {
+          throw new WpsyncError(error.code, `${error.message}\nLive may be part-way changed.`, "Run wpsync rollback to put it back exactly as it was.");
+        }
       }
       throw error;
     } finally {
