@@ -56,7 +56,7 @@ class Wpsync_Db {
 		if ( $pk ) {
 			if ( isset( $cursor['after'] ) ) {
 				$sql .= ' WHERE (' . implode( ', ', array_map( array( __CLASS__, 'ident' ), $pk ) ) . ') > ('
-					. implode( ', ', array_map( array( __CLASS__, 'literal_text' ), $cursor['after'] ) ) . ')';
+					. implode( ', ', self::key_literals( $pk, $columns, self::cursor_values( $cursor['after'] ) ) ) . ')';
 			}
 			$sql .= ' ORDER BY ' . implode( ', ', array_map( array( __CLASS__, 'ident' ), $pk ) );
 			$sql .= ' LIMIT ' . WPSYNC_DB_ROWS_LIMIT;
@@ -106,7 +106,8 @@ class Wpsync_Db {
 			if ( $pk ) {
 				$after = array();
 				foreach ( $pk as $column ) {
-					$after[] = $last[ $column ];
+					// Binary keys (Wordfence uses MD5 hashes) don't survive JSON as text: send hex.
+					$after[] = ( ! empty( $columns[ $column ] ) && null !== $last[ $column ] ) ? array( 'x' => bin2hex( $last[ $column ] ) ) : $last[ $column ];
 				}
 				$next = self::encode_cursor( array( 'after' => $after ) );
 			} else {
@@ -173,6 +174,25 @@ class Wpsync_Db {
 			$columns[ $column['Field'] ] = ( false !== strpos( $type, 'blob' ) || false !== strpos( $type, 'binary' ) );
 		}
 		return $columns;
+	}
+
+	/** SQL literals for a key's values, as hex for binary columns. */
+	private static function key_literals( $pk, $columns, $values ) {
+		$out = array();
+		foreach ( $pk as $i => $column ) {
+			$out[] = self::literal( isset( $values[ $i ] ) ? $values[ $i ] : null, ! empty( $columns[ $column ] ) );
+		}
+		return $out;
+	}
+
+	/** Cursor key values back to raw values ({"x": hex} → bytes). */
+	private static function cursor_values( $after ) {
+		return array_map(
+			function ( $value ) {
+				return is_array( $value ) && isset( $value['x'] ) ? (string) hex2bin( (string) $value['x'] ) : $value;
+			},
+			(array) $after
+		);
 	}
 
 	public static function literal( $value, $is_binary ) {
@@ -244,7 +264,7 @@ class Wpsync_Db {
 			if ( $pk ) {
 				if ( null !== $after ) {
 					$sql .= ' WHERE (' . implode( ', ', array_map( array( __CLASS__, 'ident' ), $pk ) ) . ') > ('
-						. implode( ', ', array_map( array( __CLASS__, 'literal_text' ), $after ) ) . ')';
+						. implode( ', ', self::key_literals( $pk, $columns, $after ) ) . ')';
 				}
 				$sql .= ' ORDER BY ' . implode( ', ', array_map( array( __CLASS__, 'ident' ), $pk ) ) . ' LIMIT ' . WPSYNC_DB_ROWS_LIMIT;
 			} else {

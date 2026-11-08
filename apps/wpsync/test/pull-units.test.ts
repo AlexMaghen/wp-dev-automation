@@ -112,3 +112,22 @@ describe("confirmation dialogs", () => {
     expect(rollback).toContain('default button "Cancel"');
   });
 });
+
+describe("locate (Homebrew right after installing it)", () => {
+  it("finds a command on the PATH first", async () => {
+    const { locate } = await import("../src/doctor");
+    expect(locate("brew", { onPath: () => "/usr/local/bin/brew", exists: () => true })).toEqual({ path: "/usr/local/bin/brew", onPath: true });
+  });
+
+  it("finds Homebrew's folder when it isn't on the PATH yet, Apple silicon first", async () => {
+    const { locate } = await import("../src/doctor");
+    const present = new Set(["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]);
+    expect(locate("brew", { onPath: () => null, exists: (p) => present.has(p) })).toEqual({ path: "/opt/homebrew/bin/brew", onPath: false });
+    expect(locate("brew", { onPath: () => null, exists: (p) => p === "/usr/local/bin/brew" })).toEqual({ path: "/usr/local/bin/brew", onPath: false });
+  });
+
+  it("reports nothing when it isn't installed anywhere", async () => {
+    const { locate } = await import("../src/doctor");
+    expect(locate("brew", { onPath: () => null, exists: () => false })).toBeNull();
+  });
+});

@@ -6,7 +6,7 @@ import { ddevName, ddevSettings, renderDdevConfig } from "./ddev-config";
 import { WpsyncError } from "./errors";
 import { fetchInto, findCodeDrift, listLocal, listRemote, planSync, removeLocal } from "./file-sync";
 import { bytes, count } from "./format";
-import { defaultProjectDir, projectAt, requireDocker, type Project, type ProjectFile } from "./project";
+import { defaultProjectDir, noteWordfence, projectAt, requireDocker, type Project, type ProjectFile } from "./project";
 import { ensureCurrentBridge } from "./bridge-update";
 import { requireApplicationPasswords } from "./connect";
 import { RestClient } from "./rest-client";
@@ -95,7 +95,8 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
     if (firstPull) {
       log(`Setting up ${project.dir}`);
       log(`  DDEV: PHP ${settings.phpVersion}, ${settings.webserver}, ${settings.database.type} ${settings.database.version}`);
-      project.prepare(meta, renderDdevConfig(settings, site.homeUrl), info.site.name);
+      // Stays "pending" until the pull finishes, so an interrupted first pull still reads as one.
+      project.prepare({ ...meta, setup: "pending" }, renderDdevConfig(settings, site.homeUrl), info.site.name);
     } else {
       warnings.push(...configDrift(project, settings));
     }
@@ -173,6 +174,10 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
         database: `${settings.database.type} ${settings.database.version}`,
       },
     });
+
+    // Wordfence blocks Application Passwords by default, so it was (or will need to be)
+    // switched off for wpsync: note it, so the developer is reminded to switch it back on.
+    if (info.plugins.some((p) => p.active && p.file.startsWith("wordfence/"))) noteWordfence(project.dir, site.homeUrl, now());
 
     const sensitive = info.plugins.filter((p) => p.active && SENSITIVE_PLUGIN.test(`${p.file} ${p.name}`));
     if (sensitive.length) {

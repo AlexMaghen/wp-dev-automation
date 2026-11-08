@@ -40,6 +40,7 @@ export async function listRemote(rest: RestClient, onPage: (count: number) => vo
       entries.push(entry);
     }
     onPage(entries.length);
+    if (page.next && page.next === cursor) throw new WpsyncError("paging_stuck", "The bridge kept returning the same files, so wpsync stopped.");
     cursor = page.next;
   } while (cursor);
   return entries;

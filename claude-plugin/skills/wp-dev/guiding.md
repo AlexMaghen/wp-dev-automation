@@ -118,8 +118,38 @@ Then wait with the "Done, check it" dialog.
 
 Open the browser yourself to check; tell the developer which tab to look at.
 
-## Long jobs
+## Long jobs (pull, publish, rollback)
 
-A first pull or a publish of a big site can take many minutes. Run it in the background, report
-progress from its output every few minutes in one line ("database done; 1,240 of 8,400 files"),
-and send a notification when it finishes, in case they stepped away.
+A first pull or a publish can take many minutes, and the developer can't tell from the chat
+whether it's working, slow or stuck. Nothing can lock the chat, so make it plain:
+
+1. **Before starting, say it in one message:** what's starting, roughly how long it will take,
+   that they don't need to do anything, that the Mac should stay awake with this window open,
+   and that you'll say when it's done. For example:
+
+   > Copying wp-dev-automation.maghen.com to this Mac now: about 250 MB, so probably 5 to 10
+   > minutes. You don't need to do anything. Please keep the Mac awake and this window open;
+   > I'll post progress every few minutes and tell you when it's done.
+
+   The size comes from `wpsync doctor <site-url>` ("site is about …"). Allow about a minute per
+   50 MB on a home connection, and say it's a rough guess.
+2. **Mark it in the checklist:** the step in progress with its estimate, for example "Copy the
+   live site to this Mac (about 10 minutes)". If the app can keep the Mac awake (a keep-awake
+   tool), ask for it for the duration.
+3. **Stay with the job.** Run it in the background and watch its output (a monitor on the lines
+   wpsync prints), so the session keeps working until it finishes instead of going idle. Don't
+   start other work in the meantime.
+4. **Pass on progress, not noise.** wpsync prints a `progress:` line about every 15 seconds:
+   the step, how far along, the amount, the time so far, and how long since data last arrived.
+   Every few minutes, give one line: "Database done (48 tables); files: 1,240 of 8,400
+   (310 MB)."
+5. **Stalls.** wpsync prints `stalled:` when no data has arrived for a minute. Tell the developer
+   at once, in plain words ("It's stopped receiving data for a minute; I'm checking why"), then
+   investigate: is the site answering, is the Mac online, is the size still changing. Never let
+   a stall pass in silence: that's how a broken step looks like a slow one.
+6. **When it finishes:** wpsync posts a macOS notification ("wpsync: pull finished" or "… failed"),
+   so they see it even in another app. Then tick the step and give the result in one or two
+   lines. If they asked something in the chat meanwhile, answer it now.
+
+If the developer asks whether it's still working, check the job's latest output before
+answering, and give the numbers.

@@ -16,13 +16,17 @@ function appleScriptString(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
-/** The AppleScript for the two dialogs: username, then password with the typing hidden. */
-export function loginDialogScript(siteName: string, homeUrl: string, suggestedUsername = ""): string {
-  const intro = `Sign in to ${siteName} (${homeUrl}) as an administrator.`;
+/**
+ * The AppleScript for the two dialogs: username, then password with the typing hidden. They
+ * name the site by its address only: the site's title (often a person's or company's name)
+ * reads like an account name in a sign-in dialog.
+ */
+export function loginDialogScript(homeUrl: string, suggestedUsername = ""): string {
+  const intro = `Enter an admin username and password for ${homeUrl}.`;
   const note = "wpsync uses the password once, to create its own revocable key on the site. It never saves the password.";
   return [
     `set u to text returned of (display dialog ${appleScriptString(`${intro}\n\nUsername:`)} default answer ${appleScriptString(suggestedUsername)} with title "wpsync" buttons {"Cancel", "Next"} default button "Next" cancel button "Cancel")`,
-    `set p to text returned of (display dialog ("Password for " & u & ":" & return & return & ${appleScriptString(note)}) default answer "" with hidden answer with title "wpsync" buttons {"Cancel", "Connect"} default button "Connect" cancel button "Cancel")`,
+    `set p to text returned of (display dialog ("Password for " & u & " at " & ${appleScriptString(homeUrl)} & ":" & return & return & ${appleScriptString(note)}) default answer "" with hidden answer with title "wpsync" buttons {"Cancel", "Connect"} default button "Connect" cancel button "Cancel")`,
     "return u & linefeed & p",
   ].join("\n");
 }
@@ -32,7 +36,7 @@ export const macLoginDialog: CredentialsProvider = async (site, suggestedUsernam
   let output: string;
   try {
     output = execFileSync("osascript", ["-"], {
-      input: loginDialogScript(site.name, site.homeUrl, suggestedUsername),
+      input: loginDialogScript(site.homeUrl, suggestedUsername),
       encoding: "utf8",
       stdio: ["pipe", "pipe", "pipe"],
     });

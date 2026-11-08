@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       wpsync bridge
  * Description:       Temporary bridge used by the wpsync command-line tool to copy this site to a local development copy and publish it back. It stays inactive between runs and deactivates itself two hours after activation.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires at least: 5.6
  * Requires PHP:      7.4
  * Author:            wp-dev-automation

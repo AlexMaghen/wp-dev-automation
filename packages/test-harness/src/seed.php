@@ -28,7 +28,7 @@ update_option( 'wpsync_seed_serialized', array( 'url' => $home . '/logo.png', 'n
 update_option( 'wpsync_seed_json', wp_json_encode( array( 'url' => $home . '/x' ) ) );
 
 $p = $wpdb->prefix;
-$wpdb->query( "DROP TABLE IF EXISTS {$p}wpsync_nopk, {$p}wpsync_blob, {$p}wpsync_composite" );
+$wpdb->query( "DROP TABLE IF EXISTS {$p}wpsync_nopk, {$p}wpsync_blob, {$p}wpsync_composite, {$p}wpsync_binkey" );
 
 // No primary key: paged by offset. Quotes, backslashes, % and NULL.
 $wpdb->query( "CREATE TABLE {$p}wpsync_nopk ( label VARCHAR(50), note TEXT NULL )" );
@@ -47,6 +47,14 @@ for ( $i = 0; $i < $composite_rows; $i++ ) {
 	$values[] = '(' . intdiv( $i, 3 ) . ", 'k" . ( $i % 3 ) . "', 'row $i')";
 }
 $wpdb->query( "INSERT INTO {$p}wpsync_composite VALUES " . implode( ',', $values ) );
+
+// Binary primary key with more rows than one chunk (like Wordfence's wp_wffilemods).
+$wpdb->query( "CREATE TABLE {$p}wpsync_binkey ( k BINARY(16) PRIMARY KEY, v VARCHAR(20) )" );
+$values = array();
+for ( $i = 0; $i < $composite_rows; $i++ ) {
+	$values[] = "(UNHEX(MD5('$i')), 'row $i')";
+}
+$wpdb->query( "INSERT INTO {$p}wpsync_binkey VALUES " . implode( ',', $values ) );
 
 activate_plugin( 'sample-plugin/sample-plugin.php' );
 echo "seeded\n";

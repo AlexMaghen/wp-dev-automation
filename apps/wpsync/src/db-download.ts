@@ -2,6 +2,7 @@ import { createWriteStream } from "node:fs";
 import { once } from "node:events";
 import { createGzip } from "node:zlib";
 import { DbRowsResponse, DbTablesResponse, ROUTES } from "@wp-dev-automation/protocol";
+import { WpsyncError } from "./errors";
 import type { RestClient } from "./rest-client";
 
 export interface DumpStats {
@@ -54,6 +55,10 @@ export async function downloadDatabase(
       const query: Record<string, string> = { table: table.name };
       if (cursor) query.cursor = cursor;
       const chunk = await rest.bridge(DbRowsResponse, ROUTES.dbRows, { query });
+      if (chunk.next && chunk.next === cursor) {
+        // Same place twice: paging isn't moving forward, and would repeat these rows forever.
+        throw new WpsyncError("paging_stuck", `The bridge kept returning the same rows of ${table.name}, so wpsync stopped the download.`, "This is a bug in wpsync's bridge; please report the table's name.");
+      }
       if (chunk.sql) await write(chunk.sql);
       stats.rows += chunk.rows;
       cursor = chunk.next;

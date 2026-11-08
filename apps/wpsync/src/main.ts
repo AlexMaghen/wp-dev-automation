@@ -182,7 +182,7 @@ Next: start a new Claude Code session in that folder, so its CLAUDE.md and permi
                Bypass permissions.
   Terminal:    cd "${result.project.dir}" && claude
                (or claude --dangerously-skip-permissions to skip prompts)
-Then say "continue wp-dev".`);
+Then say "continue my wp-dev project".`);
 }
 
 function runUpdateRules(args: Parsed): void {

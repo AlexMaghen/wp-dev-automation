@@ -6,7 +6,7 @@
 defined( 'ABSPATH' ) || exit;
 
 const WPSYNC_PROTOCOL_VERSION = 1;
-const WPSYNC_BRIDGE_VERSION = '0.1.0';
+const WPSYNC_BRIDGE_VERSION = '0.1.1';
 const WPSYNC_REST_NAMESPACE = 'wpsync/v1';
 const WPSYNC_PLUGIN_FILE = 'wpsync-bridge/wpsync-bridge.php';
 const WPSYNC_DEADLINE_SECONDS = 7200;

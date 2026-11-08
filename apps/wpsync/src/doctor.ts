@@ -63,6 +63,38 @@ function run(command: string, args: string[]): { ok: boolean; out: string } {
   return { ok: result.status === 0, out: `${result.stdout ?? ""}${result.stderr ?? ""}`.trim() };
 }
 
+/** Where Homebrew puts commands: Apple silicon Macs, then Intel Macs. */
+export const HOMEBREW_BIN_DIRS = ["/opt/homebrew/bin", "/usr/local/bin"];
+
+/**
+ * Finds a command: on the PATH, or else in Homebrew's folder. Right after Homebrew installs on
+ * an Apple silicon Mac, /opt/homebrew/bin isn't on the PATH until the developer runs the
+ * installer's "Next steps" lines or opens a new terminal, so a fresh install looks missing.
+ */
+export function locate(
+  command: string,
+  deps: { onPath: (command: string) => string | null; exists: (path: string) => boolean } = {
+    onPath: (c) => {
+      const found = run("/usr/bin/which", [c]);
+      return found.ok && found.out ? found.out.split("\n")[0]! : null;
+    },
+    exists: existsSync,
+  },
+): { path: string; onPath: boolean } | null {
+  const found = deps.onPath(command);
+  if (found) return { path: found, onPath: true };
+  for (const dir of HOMEBREW_BIN_DIRS) {
+    const candidate = `${dir}/${command}`;
+    if (deps.exists(candidate)) return { path: candidate, onPath: false };
+  }
+  return null;
+}
+
+/** Runs a command by its full path when it's only in Homebrew's folder. */
+function runTool(command: string, args: string[]): { ok: boolean; out: string } {
+  return run(locate(command)?.path ?? command, args);
+}
+
 function freeBytes(path: string): number | null {
   try {
     const stats = statfsSync(path);
@@ -95,19 +127,30 @@ export async function checkLocal(): Promise<Check[]> {
     needsPerson: true,
   });
 
-  const brew = run("brew", ["--version"]);
-  checks.push({
-    id: "homebrew",
-    label: "Homebrew",
-    ok: brew.ok,
-    detail: brew.ok ? brew.out.split("\n")[0]! : "not installed",
-    fix: 'Install it from https://brew.sh (paste its one-line command into Terminal; it asks for your Mac password).',
-    needsPerson: true,
-  });
+  const brewAt = locate("brew");
+  const brew = brewAt ? run(brewAt.path, ["--version"]) : { ok: false, out: "" };
+  if (brewAt && !brewAt.onPath) {
+    checks.push({
+      id: "homebrew",
+      label: "Homebrew",
+      ok: false,
+      detail: `installed at ${brewAt.path}, but not on the PATH yet`,
+      fix: `Run the "Next steps" lines Homebrew's installer printed, or add this line to ~/.zprofile and open a new Terminal window:\neval "$(${brewAt.path} shellenv)"\n(No need to install Homebrew again.)`,
+    });
+  } else {
+    checks.push({
+      id: "homebrew",
+      label: "Homebrew",
+      ok: brew.ok,
+      detail: brew.ok ? brew.out.split("\n")[0]! : "not installed",
+      fix: 'Install it from https://brew.sh (paste its one-line command into Terminal; it asks for your Mac password).',
+      needsPerson: true,
+    });
+  }
 
   const orbstack = existsSync("/Applications/OrbStack.app");
   const desktop = existsSync("/Applications/Docker.app");
-  const dockerCli = run("docker", ["--version"]);
+  const dockerCli = runTool("docker", ["--version"]);
   checks.push({
     id: "docker-installed",
     label: "Docker (OrbStack or Docker Desktop)",
@@ -115,7 +158,7 @@ export async function checkLocal(): Promise<Check[]> {
     detail: orbstack ? "OrbStack" : desktop ? "Docker Desktop" : dockerCli.ok ? dockerCli.out : "not installed",
     fix: "brew install --cask orbstack (lighter) or brew install --cask docker, then open it once and accept its terms.",
   });
-  const running = run("docker", ["info", "--format", "{{.ServerVersion}}"]);
+  const running = runTool("docker", ["info", "--format", "{{.ServerVersion}}"]);
   checks.push({
     id: "docker-running",
     label: "Docker running",
@@ -135,7 +178,7 @@ export async function checkLocal(): Promise<Check[]> {
     });
   }
 
-  const ddev = run("ddev", ["version", "--json-output"]);
+  const ddev = runTool("ddev", ["version", "--json-output"]);
   const ddevVersion = ddev.ok ? /"DDEV version":\s*"([^"]+)"/.exec(ddev.out)?.[1] ?? "installed" : "";
   checks.push({
     id: "ddev",
@@ -145,7 +188,7 @@ export async function checkLocal(): Promise<Check[]> {
     fix: "brew install ddev/ddev/ddev",
   });
 
-  const caroot = run("mkcert", ["-CAROOT"]);
+  const caroot = runTool("mkcert", ["-CAROOT"]);
   const trusted = caroot.ok && existsSync(join(caroot.out, "rootCA.pem"));
   checks.push({
     id: "mkcert",

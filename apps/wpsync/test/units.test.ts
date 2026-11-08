@@ -66,9 +66,10 @@ describe("site addresses", () => {
 });
 
 describe("login dialog script", () => {
-  it("escapes quotes and backslashes in the site's name", () => {
-    const script = loginDialogScript('Bob\'s "Best" \\ Site', "https://example.com", "admin");
-    expect(script).toContain('Bob\'s \\"Best\\" \\\\ Site');
+  it("asks for an admin login by the site's address", () => {
+    const script = loginDialogScript("https://example.com", "admin");
+    expect(script).toContain("Enter an admin username and password for https://example.com.");
+    expect(script).toContain('" at " & "https://example.com"');
     expect(script).toContain('default answer "admin"');
     expect(script).toContain("with hidden answer");
   });

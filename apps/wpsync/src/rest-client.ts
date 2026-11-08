@@ -103,12 +103,27 @@ export class RestClient {
     }
   }
 
-  /** Runs work with the bridge switched on, and switches it off again whatever happens. */
+  /**
+   * Runs work with the bridge switched on, and switches it off again whatever happens,
+   * including Ctrl-C or the process being told to stop (a finally block doesn't run then).
+   */
   async withBridge<T>(work: () => Promise<T>): Promise<T> {
     await this.setBridgeActive(true);
+    const onSignal = (signal: NodeJS.Signals) => {
+      console.error(`\nStopping (${signal}): switching the wpsync bridge off first…`);
+      this.setBridgeActive(false)
+        .catch(() => {})
+        .finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
+    };
+    process.once("SIGINT", onSignal);
+    process.once("SIGTERM", onSignal);
+    process.once("SIGHUP", onSignal);
     try {
       return await work();
     } finally {
+      process.off("SIGINT", onSignal);
+      process.off("SIGTERM", onSignal);
+      process.off("SIGHUP", onSignal);
       await this.setBridgeActive(false).catch(() => {
         // Its 2-hour deadline switches it off anyway.
       });

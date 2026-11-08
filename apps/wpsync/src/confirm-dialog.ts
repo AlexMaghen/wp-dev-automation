@@ -49,10 +49,10 @@ export const macConfirmDialog: ConfirmProvider = async (request) => {
 };
 
 export const macApplicationPasswordDialog: ApplicationPasswordProvider = async (site, suggestedUsername = "") => {
-  const intro = `Sign in to ${site.name} (${site.homeUrl}) with an Application Password.\n\nIn that site's wp-admin, go to Users → Profile → Application Passwords, add one named "wpsync", and copy it.\n\nUsername:`;
+  const intro = `Enter an admin username and an Application Password for ${site.homeUrl}.\n\nTo make one: in that site's wp-admin, go to Users → Profile → Application Passwords, add one named "wpsync", and copy it.\n\nUsername:`;
   const script = [
     `set u to text returned of (display dialog ${asString(intro)} default answer ${asString(suggestedUsername)} with title "wpsync" buttons {"Cancel", "Next"} default button "Next" cancel button "Cancel")`,
-    `set p to text returned of (display dialog ("Application Password for " & u & ":") default answer "" with hidden answer with title "wpsync" buttons {"Cancel", "Connect"} default button "Connect" cancel button "Cancel")`,
+    `set p to text returned of (display dialog ("Application Password for " & u & " at " & ${asString(site.homeUrl)} & ":") default answer "" with hidden answer with title "wpsync" buttons {"Cancel", "Connect"} default button "Connect" cancel button "Cancel")`,
     "return u & linefeed & p",
   ].join("\n");
   const answer = osascript(script);

@@ -139,6 +139,8 @@ describe("wpsync push, rollback and finalize", () => {
     expect(query(live, sql)).toBe(query(local, sql));
     const blob = tableChecksumSql("wp_wpsync_blob", ["id", "data", "bin"], "id");
     expect(query(live, blob)).toBe(query(local, blob));
+    const binkey = tableChecksumSql("wp_wpsync_binkey", ["k", "v"], "k");
+    expect(query(live, binkey)).toBe(query(local, binkey));
 
     // Files.
     expect(readFileSync(liveFile(NEW_FILE), "utf8")).toBe("made locally\n");

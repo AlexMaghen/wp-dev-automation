@@ -131,12 +131,14 @@ describe("wpsync pull", () => {
       ["wp_wpsync_nopk", ["label", "note"], "label"],
       ["wp_wpsync_blob", ["id", "data", "bin"], "id"],
       ["wp_wpsync_composite", ["a", "b", "v"], "a, b"],
+      ["wp_wpsync_binkey", ["k", "v"], "k"],
     ];
     for (const [table, columns, order] of checks) {
       const sql = tableChecksumSql(table, columns, order);
       expect(query(copy, sql), table).toBe(query(live, sql));
     }
     expect(query(copy, "SELECT COUNT(*) FROM wp_wpsync_composite")).toBe(String(SEED.compositeRows));
+    expect(query(copy, "SELECT COUNT(*) FROM wp_wpsync_binkey")).toBe(String(SEED.compositeRows));
 
     // Files: odd names, the big one by range, nothing excluded, DDEV's own wp-config.php.
     expect(readFileSync(pulledWp(SEED.unicodeFile), "utf8")).toBe("unicode file\n");

@@ -26,6 +26,27 @@ dialogs to use.
 its fix. Every step is safe to re-run, so after any interruption the developer says "continue my
 wp-dev project" and you pick up where it stopped.
 
+## Before anything: can wpsync run?
+
+wpsync runs on **Bun**, so on a Mac that doesn't have Bun yet every wpsync command (including
+`status`, `init` and `doctor`) fails with "wpsync needs Bun" (exit code 127). Check this first,
+before any wpsync command:
+
+1. Run `${CLAUDE_PLUGIN_ROOT}/bin/wpsync --version`. If it prints a version, go on to "Where are
+   we?".
+2. If it says wpsync needs Bun, find Homebrew: `command -v brew || ls /opt/homebrew/bin/brew
+   /usr/local/bin/brew`.
+   - **Homebrew found** → `brew install oven-sh/bun/bun` (using the full path to `brew` if it
+     isn't on PATH), then run `wpsync --version` again.
+   - **No Homebrew** → it needs the developer (it asks for their Mac password). Explain that
+     wpsync and the other tools are installed with Homebrew, open a Terminal tab with the
+     installer command from https://brew.sh ready (see `guiding.md`), and wait with the "Done,
+     check it" dialog. Then make Homebrew usable (see "Homebrew right after installing it" in
+     step 2) and install Bun as above.
+
+Tell the developer in one line that this is the first prerequisite, and that `wpsync doctor
+--local` will check the rest in step 2.
+
 ## Where are we?
 
 Run `wpsync status --json` in the current folder and go by its `phase`:
@@ -93,6 +114,12 @@ Install what's missing, in this order:
 
 Run `wpsync doctor --local` again until nothing says FIX. Notes (like mkcert) can wait, but say
 what they mean.
+
+**Homebrew right after installing it:** on Apple Silicon Macs Homebrew lands in
+`/opt/homebrew`, which isn't on the PATH until the installer's "Next steps" lines are run. doctor
+reports this as "installed at /opt/homebrew/bin/brew, but not on the PATH yet", with the line to
+add to `~/.zprofile`; never send them to reinstall it. Your own shell doesn't pick up
+`~/.zprofile`, so in this session prefix commands with `eval "$(/opt/homebrew/bin/brew shellenv)" &&`.
 
 ### 3. Check the site
 
