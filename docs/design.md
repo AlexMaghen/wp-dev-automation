@@ -107,7 +107,7 @@ a cursor to continue. Transfers are gzip-compressed binary with a SHA-256 checks
 ## 6. Pulling: `wpsync pull https://example.com [--dir <folder>]`
 
 1. Activate the bridge and read `info`. Refuse multisite.
-2. **First pull only:** create the site project (default `~/AxDevProj/wp-sites/<domain>/`) from
+2. **First pull only** (or the first after `wpsync init`): create the site project (default `~/wp-sites/<domain>/`) from
    `site-template`, and write `.ddev/config.yaml` to match live:
    - `php_version`: the live version, or the nearest one DDEV supports
    - `database`: the live engine and version (MariaDB or MySQL)
@@ -170,7 +170,7 @@ it lists them and asks before going ahead.
 
 | Command | Does |
 | --- | --- |
-| `wpsync refresh` | Re-pull into an existing project (section 6, step 5 protects code) |
+| `wpsync init <url>` | The start gate's folder: `CLAUDE.md`, `.claude/settings.json`, `.gitignore`, `.wpsync.json` marked pending. Contacts nothing. (A later `pull` is the refresh; section 6, step 5 protects code.) |
 | `wpsync status` | Connection, bridge version, last pull and push, saved state on live |
 | `wpsync doctor` | Checks: login, Application Password, Authorization header, file mods, PHP limits, disk space, DDEV and Docker |
 | `wpsync rollback` / `finalize` | Undo the last push / delete its saved state |
@@ -202,12 +202,18 @@ Git tracks only code the team writes. The rest can always be pulled again from l
 Installed from this private repository (`.claude-plugin/marketplace.json`); the friend needs read
 access to the repo.
 
-- **Skills:**
-  - `wp-connect`: run `wpsync connect`, explain the dialog, handle each fallback.
-  - `wp-pull`: first pull or refresh, then compare local with live in the browser.
-  - `wp-publish`: content-freeze check, dry run, explicit confirmation, push, verify, offer
+- **Skills** (plugin `wp-dev`, so `/wp-dev:setup` and so on):
+  - `setup`: the start gate below, then prerequisites, `wpsync connect` (explaining the dialog
+    and each failure), the first pull, and a check in the browser.
+  - `pull`: refresh from live, and what to do when git-tracked code changed on both sides.
+  - `publish`: content-freeze check, dry run, explicit confirmation, push, verify, offer
     `finalize` only after the developer is happy.
-  - `wp-work`: how to make changes while keeping the site a WordPress site.
+  - `work`: how to make changes while keeping the site a WordPress site.
+- **How wpsync ships in the plugin:** `claude-plugin/bin/wpsync` is a launcher that runs
+  `bin/wpsync.mjs`, the CLI bundled into one file (`pnpm --filter wpsync bundle`; a unit test
+  fails when it's stale) with Bun. Skills call it as `${CLAUDE_PLUGIN_ROOT}/bin/wpsync`, and it
+  tells each site's `CLAUDE.md` its own path. The standalone binaries (`pnpm --filter wpsync
+  build`) remain for running wpsync without the plugin.
 - **Rules** (`claude-plugin/rules/*.md`, plain text, per the owner's rule on AI instructions): the
   WordPress-native rules (Pages, Posts, blocks, menus, existing plugins first; child theme for
   looks; custom PHP last, in a prefixed plugin; nothing an editor might change is hard-coded),
@@ -240,7 +246,8 @@ apps/wpsync/               CLI (TypeScript, Bun build to a single binary)
 packages/protocol/         zod schemas for every endpoint + JSON test cases
 packages/bridge-plugin/    PHP plugin; built into wpsync-bridge.zip and embedded in the CLI
 packages/site-template/    files for new site projects
-claude-plugin/             skills/, rules/, plugin manifest
+claude-plugin/             skills/, rules/, bin/ (wpsync launcher + bundle), plugin manifest
+.claude-plugin/            marketplace.json, so the repo installs as a plugin source
 docs/                      this design, setup guide for a new user
 ```
 

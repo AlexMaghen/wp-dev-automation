@@ -4,20 +4,24 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
 import { WpsyncError } from "./errors";
+import { CLAUDE_SETTINGS, GITIGNORE, writeClaudeMd } from "./site-files";
 
 /**
  * A local site project: a folder with a DDEV config, WordPress in wp/, and .wpsync.json saying
  * which live site it copies. Holds no secrets; those stay in the Keychain.
  */
 
-export const DEFAULT_SITES_DIR = join(homedir(), "AxDevProj", "wp-sites");
+/** Where site projects go by default: ~/wp-sites/<host>. */
+export const DEFAULT_SITES_DIR = join(homedir(), "wp-sites");
 
 export const ProjectFile = z.object({
   homeUrl: z.string(),
-  siteUrl: z.string(),
-  ddevName: z.string(),
-  localUrl: z.string(),
-  tablePrefix: z.string(),
+  /** "pending" between `wpsync init` and the first pull. */
+  setup: z.enum(["pending", "ready"]).default("ready"),
+  siteUrl: z.string().optional(),
+  ddevName: z.string().optional(),
+  localUrl: z.string().optional(),
+  tablePrefix: z.string().optional(),
   lastPull: z
     .object({
       at: z.string(),
@@ -27,29 +31,15 @@ export const ProjectFile = z.object({
       bytes: z.number(),
     })
     .optional(),
+  lastPush: z
+    .object({
+      at: z.string(),
+      stageId: z.string(),
+      finalized: z.boolean(),
+    })
+    .optional(),
 });
 export type ProjectFile = z.infer<typeof ProjectFile>;
-
-const GITIGNORE = `# wpsync site project. Git tracks only code the team writes; everything else in wp/ can be
-# pulled from the live site again. To track a theme or plugin you're changing, add a line like:
-#   !wp/wp-content/themes/my-theme/
-wp/*
-!wp/wp-content/
-wp/wp-content/*
-!wp/wp-content/themes/
-wp/wp-content/themes/*
-!wp/wp-content/plugins/
-wp/wp-content/plugins/*
-
-# Database dumps and pull backups: they hold users' emails and password hashes.
-backups/
-
-# DDEV: keep config.yaml, ignore machine-local state
-.ddev/*
-!.ddev/config.yaml
-
-.DS_Store
-`;
 
 export class Project {
   constructor(readonly dir: string) {}
@@ -70,6 +60,10 @@ export class Project {
     return join(this.dir, ".ddev", "config.yaml");
   }
 
+  get claudeMdPath(): string {
+    return join(this.dir, "CLAUDE.md");
+  }
+
   exists(): boolean {
     return existsSync(this.metaPath);
   }
@@ -84,17 +78,30 @@ export class Project {
     writeFileSync(this.metaPath, `${JSON.stringify(meta, null, 2)}\n`);
   }
 
-  /** Creates the folder, DDEV config, .gitignore and a git repository with a first commit. */
-  create(meta: ProjectFile, ddevConfig: string): void {
+  /**
+   * `wpsync init`: the folder, CLAUDE.md, Claude Code permissions and .gitignore, with the
+   * project marked pending. Touches nothing outside the folder.
+   */
+  init(homeUrl: string, siteName: string): void {
+    mkdirSync(join(this.dir, ".claude"), { recursive: true });
+    const settings = join(this.dir, ".claude", "settings.json");
+    if (!existsSync(settings)) writeFileSync(settings, CLAUDE_SETTINGS);
+    if (!existsSync(join(this.dir, ".gitignore"))) writeFileSync(join(this.dir, ".gitignore"), GITIGNORE);
+    writeClaudeMd(this.claudeMdPath, siteName, { status: "set up, not pulled yet (run wpsync pull)", homeUrl });
+    this.write({ homeUrl, setup: "pending" });
+  }
+
+  /** First pull: DDEV config, folders, any init files still missing, and a git repository. */
+  prepare(meta: ProjectFile, ddevConfig: string, siteName: string): void {
+    if (!existsSync(this.metaPath)) this.init(meta.homeUrl, siteName);
     mkdirSync(join(this.dir, ".ddev"), { recursive: true });
     mkdirSync(this.wpDir, { recursive: true });
     mkdirSync(this.backupsDir, { recursive: true });
     writeFileSync(this.ddevConfigPath, ddevConfig);
-    writeFileSync(join(this.dir, ".gitignore"), GITIGNORE);
     this.write(meta);
     if (!existsSync(join(this.dir, ".git"))) {
       git(this.dir, "init", "-q", "-b", "main");
-      git(this.dir, "add", ".gitignore", ".wpsync.json", ".ddev/config.yaml");
+      git(this.dir, "add", ".gitignore", ".wpsync.json", ".ddev/config.yaml", "CLAUDE.md", ".claude/settings.json");
       git(this.dir, "-c", "user.name=wpsync", "-c", "user.email=wpsync@localhost", "commit", "-q", "-m", `wpsync: local copy of ${meta.homeUrl}`);
     }
   }

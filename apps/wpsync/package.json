@@ -9,11 +9,12 @@
   },
   "scripts": {
     "start": "bun src/main.ts",
-    "generate": "tsx scripts/embed-bridge.ts",
+    "generate": "tsx scripts/embed.ts",
     "build": "./scripts/compile.sh",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:contract": "vitest run --config vitest.contract.config.ts"
+    "test:contract": "vitest run --config vitest.contract.config.ts",
+    "bundle": "node_modules/.bin/bun build src/main.ts --target=bun --minify --outfile ../../claude-plugin/bin/wpsync.mjs"
   },
   "dependencies": {
     "@wp-dev-automation/protocol": "workspace:*",
@@ -23,6 +24,8 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@wp-dev-automation/bridge-plugin": "workspace:*",
+    "@wp-dev-automation/claude-plugin": "workspace:*",
+    "@wp-dev-automation/site-template": "workspace:*",
     "@wp-dev-automation/test-harness": "workspace:*",
     "bun": "^1.4.4",
     "tsx": "^4.23.15",

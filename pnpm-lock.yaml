@@ -30,6 +30,12 @@ importers:
       '@wp-dev-automation/bridge-plugin':
         specifier: workspace:*
         version: link:../../packages/bridge-plugin
+      '@wp-dev-automation/claude-plugin':
+        specifier: workspace:*
+        version: link:../../claude-plugin
+      '@wp-dev-automation/site-template':
+        specifier: workspace:*
+        version: link:../../packages/site-template
       '@wp-dev-automation/test-harness':
         specifier: workspace:*
         version: link:../../packages/test-harness
@@ -45,6 +51,8 @@ importers:
       vitest:
         specifier: ^5.0.5
         version: 5.1.0(@types/node@26.6.6)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
+
+  claude-plugin: {}
 
   packages/bridge-plugin:
     devDependencies:
@@ -82,6 +90,8 @@ importers:
       vitest:
         specifier: ^5.0.5
         version: 5.1.0(@types/node@26.6.6)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/site-template: {}
 
   packages/test-harness:
     devDependencies:

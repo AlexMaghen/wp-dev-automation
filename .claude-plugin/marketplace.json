@@ -1,0 +1,17 @@
+{
+  "name": "wp-dev-automation",
+  "owner": {
+    "name": "Alex Maghen"
+  },
+  "plugins": [
+    {
+      "name": "wp-dev",
+      "description": "Copy a live WordPress site into local DDEV with only an admin login, work on it the WordPress way, and publish it back.",
+      "source": "./claude-plugin",
+      "category": "development"
+    }
+  ],
+  "metadata": {
+    "description": "Alex Maghen's WordPress development tools for Claude Code."
+  }
+}

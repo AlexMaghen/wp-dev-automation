@@ -3,8 +3,9 @@
 Pull a live WordPress site into local DDEV, work on it, publish it back to replace live,
 with only a WordPress admin login (no hosting access, no paid migration plugin).
 
-**Status: design in `docs/design.md` (read it first). Build steps 1–3 of its section 13 are done
-(2026-11-08): protocol + bridge `info`, `wpsync connect`, and `wpsync pull`. Next: step 4.**
+**Status: design in `docs/design.md` (read it first). Build steps 1–4 of its section 13 are done
+(2026-11-08): protocol + bridge `info`, `wpsync connect`, `wpsync pull`, and the site template +
+Claude plugin. Next: step 5, push.**
 Not built yet from step 2: the fallback for sites whose login is blocked (two-factor, CAPTCHA),
 where the developer pastes an Application Password they made themselves.
 
@@ -17,6 +18,9 @@ where the developer pastes an Application Password they made themselves.
   `pnpm --filter @wp-dev-automation/test-harness stop`.
 - After changing the bridge's PHP, run `pnpm generate`: it also re-embeds the bridge files into
   `apps/wpsync/src/generated/bridge-files.ts`, which the CLI zips and uploads.
+- After changing the CLI, the site template or `claude-plugin/rules/`, run `pnpm generate` and
+  `pnpm --filter wpsync bundle`: the plugin runs the committed bundle, `claude-plugin/bin/wpsync.mjs`.
+- `claude plugin validate .` checks the marketplace and plugin manifests.
 - Run the CLI with `apps/wpsync/node_modules/.bin/bun apps/wpsync/src/main.ts`; `pnpm --filter
   wpsync build` compiles standalone binaries into `apps/wpsync/dist/`.
 - Claude never handles a site password: `wpsync connect` takes it through a macOS dialog the

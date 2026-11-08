@@ -1,0 +1,28 @@
+<!--
+  PURPOSE: Instructions to Claude for working on one WordPress site project made by wpsync.
+  USED BY: `wpsync init` renders this into the project's CLAUDE.md. Afterwards wpsync rewrites
+  only the two marked blocks: wpsync:facts on every pull, wpsync:rules on `wpsync update-rules`
+  (from claude-plugin/rules/). Everything outside them is the team's to edit.
+-->
+# {{SITE_NAME}}: local WordPress copy
+
+This folder is a local copy of **{{HOME_URL}}**, made by wpsync. Work happens here; the live
+site changes only when the developer asks to publish.
+
+<!-- wpsync:facts:start -->
+{{FACTS}}
+<!-- wpsync:facts:end -->
+
+## How to work here
+
+- `ddev start` brings the local site up; `ddev launch` opens it in the browser; `ddev wp …`
+  runs WP-CLI. Log in to the local wp-admin with the same account as on the live site.
+- `wpsync pull {{HOME_URL}}` refreshes this copy from live (database and changed files). Run it
+  before starting new work, so you build on what's live now.
+- `wpsync push --dry-run` shows what publishing would change. `wpsync push` **replaces the live
+  site** with this copy, and only ever runs when the developer says so.
+- Git tracks only code the team writes (see `.gitignore`). Commit as you go.
+
+<!-- wpsync:rules:start -->
+{{RULES}}
+<!-- wpsync:rules:end -->

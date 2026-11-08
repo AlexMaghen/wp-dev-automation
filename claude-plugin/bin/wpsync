@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# wpsync launcher for the wp-dev Claude Code plugin: runs the bundled CLI (wpsync.mjs, built
+# from apps/wpsync with `pnpm --filter wpsync bundle`) with Bun.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+BUN="$(command -v bun || true)"
+for candidate in "$HOME/.bun/bin/bun" /opt/homebrew/bin/bun /usr/local/bin/bun; do
+  [[ -z "$BUN" && -x "$candidate" ]] && BUN="$candidate"
+done
+if [[ -z "$BUN" ]]; then
+  echo "wpsync needs Bun. Install it with: brew install oven-sh/bun/bun" >&2
+  exit 127
+fi
+
+# Lets wpsync tell Claude, in each site's CLAUDE.md, how to run it.
+export WPSYNC_COMMAND="$HERE/wpsync"
+exec "$BUN" "$HERE/wpsync.mjs" "$@"

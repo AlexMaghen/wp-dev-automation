@@ -8,6 +8,7 @@ import { connect } from "./connect";
 import { macLoginDialog } from "./dialog";
 import { WpsyncError } from "./errors";
 import { bytes, count } from "./format";
+import { init, updateProjectRules } from "./local-commands";
 import { pull } from "./pull";
 import { MacKeychain } from "./secrets";
 
@@ -16,15 +17,22 @@ const VERSION = "0.1.0";
 const USAGE = `wpsync ${VERSION}
 
 Usage:
+  wpsync init <site-url> [--dir <folder>]
+      Make the site's project folder (default ~/wp-sites/<host>) with its CLAUDE.md
+      and Claude Code permissions, ready for a session started in it. Contacts nothing.
+
   wpsync connect <site-url> [--user <username>]
       Sign in once (a macOS dialog asks for the password), create wpsync's own
       Application Password, and install the wpsync bridge, switched off.
 
   wpsync pull <site-url> [--dir <folder>] [--name <ddev-name>] [--overwrite-code]
       Copy the live site into a local DDEV project (default folder:
-      ~/AxDevProj/wp-sites/<host>). The first pull creates the project; later
+      ~/wp-sites/<host>). The first pull creates the project; later
       pulls download only what changed. Code you track in git is never
       overwritten unless you add --overwrite-code. The live site is only read.
+
+  wpsync update-rules [--dir <folder>]
+      Refresh the WordPress rules in a project's CLAUDE.md from this wpsync.
 
   wpsync --version
   wpsync help
@@ -121,6 +129,26 @@ ${result.firstPull ? "Pulled" : "Refreshed"} the local copy
   for (const warning of result.warnings) console.log(`\nNote: ${warning}`);
 }
 
+function runInit(args: Parsed): void {
+  const url = args.positional[0];
+  if (!url) throw new UsageError("init needs the site's address, e.g. wpsync init https://example.com");
+  const result = init(url, { dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http") });
+  console.log(`${result.created ? "Created" : "Already set up"}: ${result.project.dir}
+  Site: ${result.homeUrl} (setup pending: nothing has been pulled yet)
+
+Next: start a new Claude Code session in that folder, so its CLAUDE.md and permissions load.
+  Desktop app: start a new session on the folder; optionally set the permission mode to
+               Bypass permissions.
+  Terminal:    cd "${result.project.dir}" && claude
+               (or claude --dangerously-skip-permissions to skip prompts)
+Then say "continue wp-dev".`);
+}
+
+function runUpdateRules(args: Parsed): void {
+  const result = updateProjectRules(stringFlag(args, "dir"));
+  console.log(result.changed ? `Updated the rules in ${result.path}` : `The rules in ${result.path} are already current.`);
+}
+
 class UsageError extends Error {}
 
 async function main(argv: string[]): Promise<number> {
@@ -132,6 +160,12 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case "pull":
         await runPull(args);
+        return 0;
+      case "init":
+        runInit(args);
+        return 0;
+      case "update-rules":
+        runUpdateRules(args);
         return 0;
       case undefined:
       case "help":

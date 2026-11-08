@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ddev *)",
+      "Bash(git *)",
+      "Bash(brew *)",
+      "Bash(wpsync connect *)",
+      "Bash(wpsync pull *)",
+      "Bash(wpsync init *)",
+      "Bash(wpsync status *)",
+      "Bash(wpsync doctor *)",
+      "Bash(wpsync update-rules *)",
+      "Bash(wpsync push --dry-run *)",
+      "Bash(*/bin/wpsync connect *)",
+      "Bash(*/bin/wpsync pull *)",
+      "Bash(*/bin/wpsync init *)",
+      "Bash(*/bin/wpsync status *)",
+      "Bash(*/bin/wpsync doctor *)",
+      "Bash(*/bin/wpsync update-rules *)",
+      "Bash(*/bin/wpsync push --dry-run *)"
+    ],
+    "ask": [
+      "Bash(wpsync push)",
+      "Bash(wpsync push --confirm *)",
+      "Bash(wpsync rollback *)",
+      "Bash(wpsync finalize *)",
+      "Bash(wpsync disconnect *)",
+      "Bash(*/bin/wpsync push)",
+      "Bash(*/bin/wpsync push --confirm *)",
+      "Bash(*/bin/wpsync rollback *)",
+      "Bash(*/bin/wpsync finalize *)",
+      "Bash(*/bin/wpsync disconnect *)"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { PLUGIN_SLUG } from "@wp-dev-automation/protocol";
-import { BRIDGE_FILES } from "./generated/bridge-files";
+import { BRIDGE_FILES } from "./generated/embedded";
 
 export const BRIDGE_ZIP_NAME = `${PLUGIN_SLUG}.zip`;
 

@@ -6,14 +6,15 @@ import { ddevName, ddevSettings, renderDdevConfig } from "./ddev-config";
 import { WpsyncError } from "./errors";
 import { fetchInto, findCodeDrift, listLocal, listRemote, planSync, removeLocal } from "./file-sync";
 import { bytes, count } from "./format";
-import { defaultProjectDir, projectAt, requireDocker, type Project } from "./project";
+import { defaultProjectDir, projectAt, requireDocker, type Project, type ProjectFile } from "./project";
 import { RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
+import { writeClaudeMd } from "./site-files";
 import { discoverSite, siteKey } from "./site";
 
 export interface PullOptions {
   url: string;
-  /** Project folder; defaults to ~/AxDevProj/wp-sites/<host>. */
+  /** Project folder; defaults to ~/wp-sites/<host>. */
   dir?: string;
   /** DDEV project name for a first pull; defaults to one made from the host. */
   name?: string;
@@ -67,22 +68,21 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
     refuseUnsupported(info);
 
     const project = projectAt(options.dir ?? defaultProjectDir(site.homeUrl));
-    const firstPull = !project.exists();
+    const existing = project.exists() ? project.read() : undefined;
+    // A folder from `wpsync init` counts as a first pull; it may have been made from the
+    // address as typed (say, without www), so it adopts the site's real address.
+    const firstPull = !existing || existing.setup === "pending";
     const warnings: string[] = [];
-    let name: string;
-    if (firstPull) {
-      name = options.name ?? ddevName(site.homeUrl);
-    } else {
-      const meta = project.read();
-      if (meta.homeUrl !== site.homeUrl) {
-        throw new WpsyncError("project_mismatch", `${project.dir} is a copy of ${meta.homeUrl}, not ${site.homeUrl}.`);
-      }
-      name = meta.ddevName;
+    if (existing && !firstPull && existing.homeUrl !== site.homeUrl) {
+      throw new WpsyncError("project_mismatch", `${project.dir} is a copy of ${existing.homeUrl}, not ${site.homeUrl}.`);
     }
+    const name = (!firstPull && existing?.ddevName) || options.name || ddevName(site.homeUrl);
     const settings = ddevSettings(info, name);
     const localUrl = `https://${name}.ddev.site`;
-    const meta = {
+    const meta: ProjectFile = {
+      ...existing,
       homeUrl: site.homeUrl,
+      setup: "ready",
       siteUrl: site.siteUrl,
       ddevName: name,
       localUrl,
@@ -90,9 +90,9 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
     };
 
     if (firstPull) {
-      log(`Creating ${project.dir}`);
+      log(`Setting up ${project.dir}`);
       log(`  DDEV: PHP ${settings.phpVersion}, ${settings.webserver}, ${settings.database.type} ${settings.database.version}`);
-      project.create(meta, renderDdevConfig(settings, site.homeUrl));
+      project.prepare(meta, renderDdevConfig(settings, site.homeUrl), info.site.name);
     } else {
       warnings.push(...configDrift(project, settings));
     }
@@ -150,6 +150,17 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
     project.write({
       ...meta,
       lastPull: { at: now().toISOString(), tables: db.tables, rows: db.rows, files: remote.length, bytes: fetched.bytes },
+    });
+    writeClaudeMd(project.claudeMdPath, info.site.name, {
+      status: `pulled from live ${now().toISOString().slice(0, 16).replace("T", " ")} UTC`,
+      homeUrl: site.homeUrl,
+      localUrl,
+      info,
+      ddev: {
+        phpVersion: settings.phpVersion,
+        webserver: settings.webserver,
+        database: `${settings.database.type} ${settings.database.version}`,
+      },
     });
 
     return {

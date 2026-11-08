@@ -1,0 +1,6 @@
+{
+  "name": "@wp-dev-automation/site-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Files every wpsync site project starts with: CLAUDE.md template, .gitignore, Claude Code permissions. Embedded into the CLI by its generate step."
+}

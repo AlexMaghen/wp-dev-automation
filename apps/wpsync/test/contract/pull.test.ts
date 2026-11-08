@@ -20,6 +20,7 @@ import {
 } from "@wp-dev-automation/test-harness";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { WpsyncError } from "../../src/errors";
+import { init } from "../../src/local-commands";
 import { pull } from "../../src/pull";
 import { MemoryStore } from "../../src/secrets";
 import { siteKey } from "../../src/site";
@@ -91,7 +92,10 @@ describe("wpsync pull", () => {
     await expectCode(pull(options(), { store: new MemoryStore() }), "not_connected");
   });
 
-  it("makes a working local copy on the first pull", async () => {
+  it("makes a working local copy on the first pull, after the start gate's init", async () => {
+    init(BASE_URL, { dir: PULLED_DIR, allowHttp: true });
+    expect(JSON.parse(readFileSync(join(PULLED_DIR, ".wpsync.json"), "utf8")).setup).toBe("pending");
+
     const result = await pull(options(), { store });
     expect(result.firstPull).toBe(true);
     expect(result.localUrl).toBe(LOCAL_URL);
@@ -99,8 +103,17 @@ describe("wpsync pull", () => {
 
     // The project.
     expect(readFileSync(join(PULLED_DIR, ".ddev", "config.yaml"), "utf8")).toMatch(/type: mariadb\n\s+version: "11.4"/);
-    expect(JSON.parse(readFileSync(join(PULLED_DIR, ".wpsync.json"), "utf8")).homeUrl).toBe(BASE_URL);
+    const meta = JSON.parse(readFileSync(join(PULLED_DIR, ".wpsync.json"), "utf8"));
+    expect(meta.homeUrl).toBe(BASE_URL);
+    expect(meta.setup).toBe("ready");
     expect(existsSync(join(PULLED_DIR, ".git"))).toBe(true);
+    expect(execGit(["ls-files"]).split("\n")).toEqual(
+      expect.arrayContaining([".claude/settings.json", ".ddev/config.yaml", ".gitignore", ".wpsync.json", "CLAUDE.md"]),
+    );
+    const claudeMd = readFileSync(join(PULLED_DIR, "CLAUDE.md"), "utf8");
+    expect(claudeMd).toContain(`**Local copy:** ${LOCAL_URL}`);
+    expect(claudeMd).toContain("Sample Plugin 1.0");
+    expect(claudeMd).toContain("## Keep it a WordPress site");
 
     // Addresses moved to the local copy, including inside serialized and JSON values.
     // Read the stored value: WP_HOME, which DDEV sets from the request's scheme, would hide it.

@@ -1,0 +1,22 @@
+# wpsync site project. Git tracks only code the team writes; everything else in wp/ can be
+# pulled from the live site again. To track a theme or plugin you're changing, add a line like:
+#   !wp/wp-content/themes/my-theme/
+wp/*
+!wp/wp-content/
+wp/wp-content/*
+!wp/wp-content/themes/
+wp/wp-content/themes/*
+!wp/wp-content/plugins/
+wp/wp-content/plugins/*
+
+# Database dumps and pull backups: they hold users' emails and password hashes.
+backups/
+
+# DDEV: keep config.yaml, ignore machine-local state
+.ddev/*
+!.ddev/config.yaml
+
+# Personal Claude Code settings
+.claude/settings.local.json
+
+.DS_Store

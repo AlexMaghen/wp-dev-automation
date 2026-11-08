@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { EMBED_PATH, renderEmbeddedBridge } from "../scripts/embed-lib";
+import { EMBED_PATH, renderEmbedded } from "../scripts/embed-lib";
 import { bridgeZip } from "../src/bridge-zip";
 import { loginDialogScript } from "../src/dialog";
 import { WpsyncError } from "../src/errors";
@@ -14,7 +14,7 @@ const app = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("embedded bridge", () => {
   it(`${EMBED_PATH} is up to date (run pnpm generate if this fails)`, () => {
-    expect(readFileSync(join(app, EMBED_PATH), "utf8")).toBe(renderEmbeddedBridge());
+    expect(readFileSync(join(app, EMBED_PATH), "utf8")).toBe(renderEmbedded());
   });
 
   it("zips into a single wpsync-bridge/ folder with the plugin's files", () => {
