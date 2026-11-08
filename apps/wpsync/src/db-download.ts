@@ -24,6 +24,7 @@ export async function downloadDatabase(
   rest: RestClient,
   target: string,
   onTable: (name: string, index: number, total: number) => void = () => {},
+  onChunk: (stats: DumpStats) => void = () => {},
 ): Promise<DumpStats> {
   const { charset, tables } = await rest.bridge(DbTablesResponse, ROUTES.dbTables);
 
@@ -61,6 +62,7 @@ export async function downloadDatabase(
       }
       if (chunk.sql) await write(chunk.sql);
       stats.rows += chunk.rows;
+      onChunk(stats);
       cursor = chunk.next;
     } while (cursor);
   }

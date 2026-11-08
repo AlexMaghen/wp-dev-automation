@@ -8,7 +8,7 @@
 export const PROTOCOL_VERSION = 1;
 
 /** Version of the bridge plugin built from this repository. */
-export const BRIDGE_VERSION = "0.1.1";
+export const BRIDGE_VERSION = "0.1.2";
 
 /** REST namespace: routes live under /wp-json/wpsync/v1/. */
 export const REST_NAMESPACE = "wpsync/v1";
@@ -58,7 +58,7 @@ export const PULL_EXCLUDES = [
   ".svn",
   "error_log",
   "wp-content/plugins/wpsync-bridge",
-  "wp-content/uploads/wpsync-*",
+  "wp-content/uploads/wpsync-stage-*",
   "wp-content/cache",
   "wp-content/upgrade",
   "wp-content/upgrade-temp-backup",
@@ -78,6 +78,8 @@ export const PULL_EXCLUDES = [
  */
 export const PUSH_PROTECTED = [
   ".htaccess",
+  // DDEV writes its own .gitignore into the local copy's WordPress folder.
+  ".gitignore",
   ".user.ini",
   "php.ini",
   "web.config",

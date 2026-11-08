@@ -144,7 +144,7 @@ async function fetchBatch(rest: RestClient, paths: string[]) {
   return parseFetchStream(response.bytes);
 }
 
-async function readLarge(rest: RestClient, path: string): Promise<{ content: Buffer; size: number } | null> {
+async function readLarge(rest: RestClient, path: string, onRange: () => void = () => {}): Promise<{ content: Buffer; size: number } | null> {
   const parts: Buffer[] = [];
   let offset = 0;
   let size = Number.POSITIVE_INFINITY;
@@ -160,6 +160,7 @@ async function readLarge(rest: RestClient, path: string): Promise<{ content: Buf
     if (response.bytes.length === 0) break;
     parts.push(response.bytes);
     offset += response.bytes.length;
+    onRange();
   }
   return { content: Buffer.concat(parts), size: offset };
 }
@@ -197,6 +198,7 @@ export async function fetchInto(
   wpDir: string,
   entries: FileEntry[],
   onProgress: (files: number, bytes: number) => void = () => {},
+  onActivity: () => void = () => {},
 ): Promise<FetchStats> {
   const stats: FetchStats = { files: 0, bytes: 0, vanished: [] };
   const { small, large } = batches(entries);
@@ -218,7 +220,7 @@ export async function fetchInto(
   });
 
   for (const entry of large) {
-    const result = await readLarge(rest, entry.path);
+    const result = await readLarge(rest, entry.path, onActivity);
     if (!result) {
       stats.vanished.push(entry.path);
       continue;

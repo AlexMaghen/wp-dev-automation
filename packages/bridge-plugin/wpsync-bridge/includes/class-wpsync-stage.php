@@ -3,7 +3,7 @@
  * Publishing: POST stage/begin, PUT stage/chunk, POST stage/apply, POST rollback, POST finalize.
  * Shapes and the uploaded formats: packages/protocol/src/push.ts.
  *
- * A stage lives in wp-content/uploads/wpsync-<id>/ (never served, never pulled or pushed) with
+ * A stage lives in wp-content/uploads/wpsync-stage-<id>/ (never served, never pulled or pushed) with
  * state.json. Apply, rollback and finalize each work for at most WPSYNC_TIME_BUDGET_SECONDS per
  * call and are called again until done, so no host time limit stops them. Every step can be
  * repeated after a crash without harm.
@@ -560,7 +560,7 @@ class Wpsync_Stage {
 	}
 
 	private static function dir( $id ) {
-		return self::base_dir() . '/wpsync-' . $id;
+		return self::base_dir() . '/wpsync-stage-' . $id;
 	}
 
 	private static function chunk_path( $id, $part, $seq ) {

@@ -9,8 +9,12 @@
       "excluded": false
     },
     {
-      "path": "wp-content/uploads/wpsync-1a2b/db.sql",
+      "path": "wp-content/uploads/wpsync-stage-1a2b/db.sql",
       "excluded": true
+    },
+    {
+      "path": "wp-content/uploads/wpsync-test.txt",
+      "excluded": false
     },
     {
       "path": "wp-content/uploads/wpsync",

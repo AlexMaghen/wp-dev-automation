@@ -6,7 +6,7 @@
 defined( 'ABSPATH' ) || exit;
 
 const WPSYNC_PROTOCOL_VERSION = 1;
-const WPSYNC_BRIDGE_VERSION = '0.1.1';
+const WPSYNC_BRIDGE_VERSION = '0.1.2';
 const WPSYNC_REST_NAMESPACE = 'wpsync/v1';
 const WPSYNC_PLUGIN_FILE = 'wpsync-bridge/wpsync-bridge.php';
 const WPSYNC_DEADLINE_SECONDS = 7200;
@@ -32,7 +32,7 @@ const WPSYNC_PULL_EXCLUDES = array(
 	'.svn',
 	'error_log',
 	'wp-content/plugins/wpsync-bridge',
-	'wp-content/uploads/wpsync-*',
+	'wp-content/uploads/wpsync-stage-*',
 	'wp-content/cache',
 	'wp-content/upgrade',
 	'wp-content/upgrade-temp-backup',
@@ -47,6 +47,7 @@ const WPSYNC_PULL_EXCLUDES = array(
 
 const WPSYNC_PUSH_PROTECTED = array(
 	'.htaccess',
+	'.gitignore',
 	'.user.ini',
 	'php.ini',
 	'web.config',

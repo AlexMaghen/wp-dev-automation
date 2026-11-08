@@ -64,7 +64,7 @@ const stageTables = () =>
   Number(wp("db", "query", "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'wpsync\\_%'", "--skip-column-names"));
 const stageDirs = () => {
   syncFiles();
-  return readdirSync(liveFile("wp-content/uploads")).filter((n) => /^wpsync-[a-z0-9]{12}$/.test(n));
+  return readdirSync(liveFile("wp-content/uploads")).filter((n) => /^wpsync-stage-[a-z0-9]{12}$/.test(n));
 };
 let baseUrl = "";
 const homeStatus = async () => (await fetch(`${baseUrl}/`)).status;
@@ -143,7 +143,7 @@ describe("publish failure drills", () => {
     expect(await upload(abandoned.stageId, "db", copyOfLive(abandoned.newPrefix))).toBe(200);
     const next = await begin(); // the CLI starting over
     expect(next.stageId).not.toBe(abandoned.stageId);
-    expect(stageDirs()).toEqual([`wpsync-${next.stageId}`]);
+    expect(stageDirs()).toEqual([`wpsync-stage-${next.stageId}`]);
     await untilDone("finalize", { stage: next.stageId });
     expect(stageDirs()).toEqual([]);
     expect(stageTables()).toBe(0);

@@ -131,3 +131,44 @@ describe("locate (Homebrew right after installing it)", () => {
     expect(locate("brew", { onPath: () => null, exists: () => false })).toBeNull();
   });
 });
+
+describe("progress for long jobs", () => {
+  async function make(network = true) {
+    const { Progress } = await import("../src/progress");
+    let clock = 0;
+    const lines: string[] = [];
+    const progress = new Progress((line) => lines.push(line), { intervalMs: 15_000, stallMs: 60_000, now: () => clock });
+    progress.step("database", { total: 48, unit: "tables", network });
+    return { progress, lines, advance: (ms: number) => (clock += ms) };
+  }
+
+  it("prints a progress line on schedule, with how long since data last arrived", async () => {
+    const { progress, lines, advance } = await make();
+    advance(16_000);
+    progress.update({ done: 12, bytes: 40 * 1024 * 1024, detail: "wp_posts" });
+    advance(4_000);
+    progress.tick();
+    expect(lines.at(-1)).toBe("progress: database 12/48 tables, 40 MB (wp_posts) · 20s · last data 4s ago");
+  });
+
+  it("reports a stall after a minute without data, and again a minute later", async () => {
+    const { progress, lines, advance } = await make();
+    advance(61_000);
+    progress.tick();
+    expect(lines.at(-1)).toBe("stalled: no data for 1m 1s during database");
+    advance(30_000);
+    progress.tick();
+    expect(lines.filter((l) => l.startsWith("stalled:"))).toHaveLength(1);
+    advance(31_000);
+    progress.tick();
+    expect(lines.filter((l) => l.startsWith("stalled:"))).toHaveLength(2);
+  });
+
+  it("never reports a stall for work that runs only on this Mac", async () => {
+    const { progress, lines, advance } = await make(false);
+    advance(300_000);
+    progress.tick();
+    expect(lines.some((l) => l.startsWith("stalled:"))).toBe(false);
+    expect(lines.at(-1)).not.toContain("last data");
+  });
+});

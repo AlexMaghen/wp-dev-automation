@@ -17,6 +17,7 @@ import { pull } from "./pull";
 import { describePlan, finalize, push, rollback } from "./push";
 import { macApplicationPasswordDialog, macConfirmDialog } from "./confirm-dialog";
 import { noteWordfence } from "./project";
+import { notify } from "./progress";
 import { MacKeychain } from "./secrets";
 import { normalizeUrl } from "./site";
 
@@ -168,6 +169,7 @@ ${result.firstPull ? "Pulled" : "Refreshed"} the local copy
   Database   ${count(result.tables)} tables, ${count(result.rows)} rows
   Files      ${count(result.filesFetched)} downloaded (${bytes(result.bytesFetched)}), ${count(result.filesDeleted)} deleted, ${count(result.filesUnchanged)} unchanged`);
   for (const warning of result.warnings) console.log(`\nNote: ${warning}`);
+  notify("wpsync: pull finished", `The local copy of ${url} is ready.`);
 }
 
 function runInit(args: Parsed): void {
@@ -208,6 +210,7 @@ async function runPush(args: Parsed): Promise<void> {
     return;
   }
   console.log(`\nPublished to ${result.plan.homeUrl}`);
+  notify("wpsync: publish finished", `${result.plan.homeUrl} now has the local copy. Check it, then finalize or roll back.`);
   for (const check of result.checks ?? []) console.log(`  ${check.ok ? "ok " : "BAD"} ${check.status} ${check.url}`);
   if (result.skipped?.length) console.log(`  Left alone on live (protected): ${result.skipped.join(", ")}`);
   console.log(`  Backup of what changed: ${result.backupDir}`);
@@ -294,6 +297,9 @@ async function runDisconnect(args: Parsed): Promise<void> {
   Keychain       forgotten`);
 }
 
+/** Commands long enough that their end deserves a notification. */
+const LONG_COMMANDS = new Set(["pull", "push", "rollback", "finalize", "new"]);
+
 class UsageError extends Error {}
 
 async function main(argv: string[]): Promise<number> {
@@ -350,6 +356,9 @@ async function main(argv: string[]): Promise<number> {
       return 2;
     }
     if (error instanceof WpsyncError) {
+      if (LONG_COMMANDS.has(args.command ?? "") && error.code !== "cancelled" && error.code !== "not_confirmed") {
+        notify(`wpsync: ${args.command} stopped`, error.message.split("\n")[0]!.slice(0, 180));
+      }
       if (error.code === "wordfence_application_passwords" && args.positional[0]) {
         try {
           noteWordfence(stringFlag(args, "dir") ?? process.cwd(), normalizeUrl(args.positional[0], args.flags.has("allow-http")));

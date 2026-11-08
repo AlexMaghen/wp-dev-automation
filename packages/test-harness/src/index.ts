@@ -182,7 +182,7 @@ export const SEED = {
   unicodeFile: "wp-content/uploads/2026/11/Spaced name & ünïcode.txt",
   bigFile: "wp-content/uploads/big.bin",
   samplePlugin: "wp-content/plugins/sample-plugin/sample-plugin.php",
-  excludedFiles: ["wp-content/cache/page.html", "wp-content/uploads/wpsync-abc123/secret.txt"],
+  excludedFiles: ["wp-content/cache/page.html", "wp-content/uploads/wpsync-stage-abc123/secret.txt"],
   compositeRows: 2500,
 } as const;
 

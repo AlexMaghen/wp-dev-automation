@@ -80,7 +80,8 @@ function pathVectors(): string {
   const excluded = [
     "wp-config.php",
     "wp-config-sample.php",
-    "wp-content/uploads/wpsync-1a2b/db.sql",
+    "wp-content/uploads/wpsync-stage-1a2b/db.sql",
+    "wp-content/uploads/wpsync-test.txt",
     "wp-content/uploads/wpsync",
     "wp-content/uploads/2026/11/photo.jpg",
     "wp-content/plugins/wpsync-bridge/wpsync-bridge.php",

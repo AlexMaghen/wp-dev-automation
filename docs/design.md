@@ -84,7 +84,7 @@ reconnect.
   requests and deactivates itself, so a crashed run never leaves it on.
 - **Access.** Every endpoint requires an authenticated user with `manage_options`, over HTTPS.
 - **One operation at a time**, enforced by a lock option with a timeout.
-- **Staging area.** Uploaded data goes to `wp-content/uploads/wpsync-<random>/`, with
+- **Staging area.** Uploaded data goes to `wp-content/uploads/wpsync-stage-<random>/` (a name no site's own upload is likely to have), with
   `index.php` and deny rules. It is deleted when the operation finishes or is abandoned.
 - **Disconnect.** `wpsync disconnect` deletes the bridge, revokes the Application Password through
   REST, and removes the Keychain entry.

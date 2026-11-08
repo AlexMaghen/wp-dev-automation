@@ -9,8 +9,10 @@ describe("isExcluded", () => {
   });
 
   it("matches * within one segment only", () => {
-    expect(isExcluded("wp-content/uploads/wpsync-abc123/chunk-1")).toBe(true);
-    expect(isExcluded("wp-content/uploads/2026/wpsync-abc/x")).toBe(false);
+    expect(isExcluded("wp-content/uploads/wpsync-stage-abc123/chunk-1")).toBe(true);
+    // A site's own upload that merely starts with "wpsync-" is copied.
+    expect(isExcluded("wp-content/uploads/wpsync-test.txt")).toBe(false);
+    expect(isExcluded("wp-content/uploads/2026/wpsync-stage-abc/x")).toBe(false);
   });
 
   it("doesn't exclude look-alikes", () => {

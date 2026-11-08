@@ -23,6 +23,7 @@ import { exportDatabase, pieces, planPush, scratchDir, toLiveReplacements, write
 import type { ConfirmProvider } from "./confirm-dialog";
 import { ensureCurrentBridge } from "./bridge-update";
 import { requireApplicationPasswords } from "./connect";
+import { Progress } from "./progress";
 import { RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
 import { discoverSite, siteKey, type Site } from "./site";
@@ -36,6 +37,8 @@ export interface PushOptions {
   /** Only for local development sites (DDEV); real sites must use HTTPS. */
   allowHttp?: boolean;
   log?: (line: string) => void;
+  /** Progress line timing (tests shorten it). */
+  progress?: { intervalMs?: number; stallMs?: number };
 }
 
 export interface PushDeps {
@@ -227,83 +230,100 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
     const stamp = now().toISOString().replace(/[:.]/g, "-");
     const backupDir = join(project.backupsDir, `push-${stamp}`);
     mkdirSync(backupDir, { recursive: true });
-    log("Backing up live's database…");
-    await downloadDatabase(rest, join(backupDir, "live.sql.gz"));
-    const remotePaths = new Set((await listRemote(rest)).map((e) => e.path));
-    const touched = [...plan.files.upload.filter((e) => remotePaths.has(e.path)).map((e) => e.path), ...plan.files.remove];
-    if (touched.length) {
-      log(`Backing up ${count(touched.length)} live files this push replaces or deletes…`);
-      const live = (await listRemote(rest)).filter((e) => touched.includes(e.path));
-      await fetchInto(rest, join(backupDir, "files"), live);
-    }
-
-    // 2. Open the stage, then build and upload the database and the files.
-    const stage = await rest.bridge(StageBeginResponse, ROUTES.stageBegin, {
-      method: "POST",
-      body: { dbBytes: plan.database.bytes, filesBytes: plan.files.uploadBytes, includeHtaccess },
-    });
-    // Record the push now, not when it's done: if wpsync itself dies part-way (laptop closed,
-    // network gone), `wpsync rollback` must still know which push to undo.
-    const pushedAt = now().toISOString();
-    const { lastPush: _previous, ...withoutPush } = meta;
-    project.write({ ...withoutPush, lastPush: { at: pushedAt, stageId: stage.stageId, finalized: false } });
-    const clearPush = () => project.write(withoutPush);
-    let applied = false;
-    let rolledBack = false;
+    const progress = new Progress(log, options.progress).start();
     try {
-      log("Preparing the local copy for live…");
-      const db = exportDatabase(project, stage.newPrefix, toLiveReplacements(meta.siteUrl!, meta.homeUrl, meta.localUrl!), log);
-      const archive = writeFilesArchive(project, plan.files);
-      const piece = Math.max(16 * 1024, Math.min(PUSH_CHUNK_BYTES, stage.chunkBytes - 4096));
-      log(`Uploading the database (${bytes(db.bytes)})…`);
-      const dbChunks = await upload(rest, stage.stageId, "db", db.path, piece);
-      log(`Uploading ${count(plan.files.upload.length)} files (${bytes(archive.bytes)})…`);
-      const fileChunks = await upload(rest, stage.stageId, "files", archive.path, piece);
-
-      // 3. Apply, step by step.
-      log("Publishing…");
-      const result = await runSteps(rest, ROUTES.stageApply, { stage: stage.stageId, chunks: { db: dbChunks, files: fileChunks } }, log);
-      if (result.step !== "applied") {
-        log(`Publishing failed: ${result.error ?? "unknown error"}. Rolling back…`);
-        await runSteps(rest, ROUTES.rollback, { stage: stage.stageId }, log);
-        rolledBack = true;
-        throw new WpsyncError("push_failed", `Publishing failed and live was put back as it was: ${result.error ?? "unknown error"}`);
+      log("Backing up live's database…");
+      progress.step("backing up live's database", { unit: "tables" });
+      await downloadDatabase(
+        rest,
+        join(backupDir, "live.sql.gz"),
+        (table, i, total) => progress.update({ done: i, total, detail: table }),
+        (stats) => progress.update({ bytes: stats.sqlBytes }),
+      );
+      const remotePaths = new Set((await listRemote(rest)).map((e) => e.path));
+      const touched = [...plan.files.upload.filter((e) => remotePaths.has(e.path)).map((e) => e.path), ...plan.files.remove];
+      if (touched.length) {
+        log(`Backing up ${count(touched.length)} live files this push replaces or deletes…`);
+        const live = (await listRemote(rest)).filter((e) => touched.includes(e.path));
+        progress.step("backing up live's files", { total: live.length, unit: "files" });
+        await fetchInto(rest, join(backupDir, "files"), live, (files, total) => progress.update({ done: files, bytes: total }), () => progress.activity());
       }
-      applied = true;
 
-      // 4. Check the live site works; undo if it doesn't.
-      log("Checking the live site…");
-      const checks = await checkPages(site);
-      const broken = checks.filter((c) => !c.ok);
-      if (broken.length) {
-        log("Live pages aren't loading properly. Rolling back…");
-        await runSteps(rest, ROUTES.rollback, { stage: stage.stageId }, log);
-        rolledBack = true;
-        throw new WpsyncError(
-          "push_broke_site",
-          `The published site didn't load properly, so wpsync put the old one back:\n${broken.map((c) => `  ${c.url} (HTTP ${c.status})`).join("\n")}`,
-          "Check those pages locally (ddev logs shows PHP errors), fix, and publish again.",
-        );
-      }
-      return { plan, applied: true, stageId: stage.stageId, checks, skipped: result.skipped, backupDir };
-    } catch (error) {
-      if (rolledBack) {
-        clearPush();
-      } else if (!applied) {
-        // Discard the stage. The bridge refuses if live was already changed; then the push stays
-        // recorded, and the error below tells the developer to run wpsync rollback.
-        const discarded = await runSteps(rest, ROUTES.finalize, { stage: stage.stageId }, () => {}).then(
-          () => true,
-          () => false,
-        );
-        if (discarded) clearPush();
-        else if (error instanceof WpsyncError) {
-          throw new WpsyncError(error.code, `${error.message}\nLive may be part-way changed.`, "Run wpsync rollback to put it back exactly as it was.");
+      // 2. Open the stage, then build and upload the database and the files.
+      const stage = await rest.bridge(StageBeginResponse, ROUTES.stageBegin, {
+        method: "POST",
+        body: { dbBytes: plan.database.bytes, filesBytes: plan.files.uploadBytes, includeHtaccess },
+      });
+      // Record the push now, not when it's done: if wpsync itself dies part-way (laptop closed,
+      // network gone), `wpsync rollback` must still know which push to undo.
+      const pushedAt = now().toISOString();
+      const { lastPush: _previous, ...withoutPush } = meta;
+      project.write({ ...withoutPush, lastPush: { at: pushedAt, stageId: stage.stageId, finalized: false } });
+      const clearPush = () => project.write(withoutPush);
+      let applied = false;
+      let rolledBack = false;
+      try {
+        log("Preparing the local copy for live…");
+        progress.step("preparing the local copy", { network: false });
+        const db = exportDatabase(project, stage.newPrefix, toLiveReplacements(meta.siteUrl!, meta.homeUrl, meta.localUrl!), log);
+        const archive = writeFilesArchive(project, plan.files);
+        const piece = Math.max(16 * 1024, Math.min(PUSH_CHUNK_BYTES, stage.chunkBytes - 4096));
+        log(`Uploading the database (${bytes(db.bytes)})…`);
+        progress.step("uploading the database", { unit: "pieces" });
+        const dbChunks = await upload(rest, stage.stageId, "db", db.path, piece, progress);
+        log(`Uploading ${count(plan.files.upload.length)} files (${bytes(archive.bytes)})…`);
+        progress.step("uploading files", { unit: "pieces" });
+        const fileChunks = await upload(rest, stage.stageId, "files", archive.path, piece, progress);
+
+        // 3. Apply, step by step.
+        log("Publishing…");
+        progress.step("publishing on the server");
+        const result = await runSteps(rest, ROUTES.stageApply, { stage: stage.stageId, chunks: { db: dbChunks, files: fileChunks } }, log, progress);
+        if (result.step !== "applied") {
+          log(`Publishing failed: ${result.error ?? "unknown error"}. Rolling back…`);
+          await runSteps(rest, ROUTES.rollback, { stage: stage.stageId }, log, progress);
+          rolledBack = true;
+          throw new WpsyncError("push_failed", `Publishing failed and live was put back as it was: ${result.error ?? "unknown error"}`);
         }
+        applied = true;
+
+        // 4. Check the live site works; undo if it doesn't.
+        log("Checking the live site…");
+        progress.step("checking the live site");
+        const checks = await checkPages(site);
+        const broken = checks.filter((c) => !c.ok);
+        if (broken.length) {
+          log("Live pages aren't loading properly. Rolling back…");
+          await runSteps(rest, ROUTES.rollback, { stage: stage.stageId }, log, progress);
+          rolledBack = true;
+          throw new WpsyncError(
+            "push_broke_site",
+            `The published site didn't load properly, so wpsync put the old one back:\n${broken.map((c) => `  ${c.url} (HTTP ${c.status})`).join("\n")}`,
+            "Check those pages locally (ddev logs shows PHP errors), fix, and publish again.",
+          );
+        }
+        return { plan, applied: true, stageId: stage.stageId, checks, skipped: result.skipped, backupDir };
+      } catch (error) {
+        if (rolledBack) {
+          clearPush();
+        } else if (!applied) {
+          // Discard the stage. The bridge refuses if live was already changed; then the push stays
+          // recorded, and the error below tells the developer to run wpsync rollback.
+          const discarded = await runSteps(rest, ROUTES.finalize, { stage: stage.stageId }, () => {}).then(
+            () => true,
+            () => false,
+          );
+          if (discarded) clearPush();
+          else if (error instanceof WpsyncError) {
+            throw new WpsyncError(error.code, `${error.message}\nLive may be part-way changed.`, "Run wpsync rollback to put it back exactly as it was.");
+          }
+        }
+        throw error;
+      } finally {
+        rmSync(scratchDir(project), { recursive: true, force: true });
       }
-      throw error;
     } finally {
-      rmSync(scratchDir(project), { recursive: true, force: true });
+      progress.stop();
     }
   });
 }
@@ -335,11 +355,14 @@ export function describePlan(plan: PushPlan): string {
   return lines.join("\n");
 }
 
-async function upload(rest: RestClient, stage: string, part: StagePart, path: string, size: number): Promise<number> {
+async function upload(rest: RestClient, stage: string, part: StagePart, path: string, size: number, progress?: Progress): Promise<number> {
   const queue: Array<{ seq: number; data: Buffer }> = [];
   let seq = 0;
   for (const piece of pieces(path, size)) queue.push({ seq: seq++, data: gzipSync(piece) });
   let next = 0;
+  let sent = 0;
+  let sentBytes = 0;
+  progress?.update({ done: 0, total: queue.length });
   await Promise.all(
     Array.from({ length: Math.min(3, queue.length) }, async () => {
       while (next < queue.length) {
@@ -349,6 +372,7 @@ async function upload(rest: RestClient, stage: string, part: StagePart, path: st
           query: { stage, part, seq: String(n), sha256: createHash("sha256").update(data).digest("hex") },
           bytes: data,
         });
+        progress?.update({ done: ++sent, bytes: (sentBytes += data.length) });
       }
     }),
   );
@@ -356,10 +380,11 @@ async function upload(rest: RestClient, stage: string, part: StagePart, path: st
 }
 
 /** Calls an apply/rollback/finalize route until it reports done, printing each new step. */
-async function runSteps(rest: RestClient, route: string, body: unknown, log: (line: string) => void): Promise<StageProgress> {
+async function runSteps(rest: RestClient, route: string, body: unknown, log: (line: string) => void, reporter?: Progress): Promise<StageProgress> {
   let last = "";
   for (;;) {
     const progress = await rest.bridge(StageProgress, route, { method: "POST", body });
+    reporter?.update({ done: progress.progress?.done ?? 0, total: progress.progress?.total, detail: progress.step });
     const label = progress.progress ? `${progress.step} (${Math.round((100 * progress.progress.done) / Math.max(1, progress.progress.total))}%)` : progress.step;
     if (label !== last) log(`  ${label}`);
     last = label;

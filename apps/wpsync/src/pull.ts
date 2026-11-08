@@ -12,7 +12,8 @@ import { requireApplicationPasswords } from "./connect";
 import { RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
 import { writeClaudeMd } from "./site-files";
-import { discoverSite, siteKey } from "./site";
+import { discoverSite, siteKey, type Site } from "./site";
+import { Progress } from "./progress";
 
 export interface PullOptions {
   url: string;
@@ -24,6 +25,8 @@ export interface PullOptions {
   allowHttp?: boolean;
   /** Replace git-tracked code with live's copy even when they differ. */
   overwriteCode?: boolean;
+  /** Progress line timing (tests shorten it). */
+  progress?: { intervalMs?: number; stallMs?: number };
   log?: (line: string) => void;
 }
 
@@ -66,7 +69,19 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
   }
   const rest = new RestClient(site, connection.username, connection.applicationPassword);
 
-  return rest.withBridge(async () => {
+  const progress = new Progress(log, options.progress).start();
+  try {
+    return await rest.withBridge(() => pullWithBridge(options, deps, site, rest, progress));
+  } finally {
+    progress.stop();
+  }
+}
+
+async function pullWithBridge(options: PullOptions, deps: PullDeps, site: Site, rest: RestClient, progress: Progress): Promise<PullResult> {
+  const log = options.log ?? (() => {});
+  const now = deps.now ?? (() => new Date());
+  {
+    progress.step("checking the site");
     const info = await ensureCurrentBridge(rest, await rest.bridge(InfoResponse, ROUTES.info), log);
     refuseUnsupported(info);
 
@@ -102,7 +117,8 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
     }
 
     log("Listing the site's files…");
-    const remote = await listRemote(rest);
+    progress.step("listing files", { unit: "files" });
+    const remote = await listRemote(rest, (n) => progress.update({ done: n }));
     const local = listLocal(project.wpDir);
 
     const tracked = project.trackedWpFiles();
@@ -123,28 +139,37 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
     const stamp = now().toISOString().replace(/[:.]/g, "-");
     const dump = join(project.backupsDir, `pull-${stamp}.sql.gz`);
     log("Downloading the database…");
-    const db = await downloadDatabase(rest, dump, (table, i, total) => log(`  ${i + 1}/${total} ${table}`));
+    progress.step("database", { unit: "tables" });
+    const db = await downloadDatabase(
+      rest,
+      dump,
+      (table, i, total) => progress.update({ done: i, total, detail: table }),
+      (stats) => progress.update({ bytes: stats.sqlBytes }),
+    );
     log(`  ${count(db.tables)} tables, ${count(db.rows)} rows, ${bytes(db.sqlBytes)} of SQL`);
     pruneDumps(project);
 
     log(`Files: ${count(plan.fetch.length)} to download, ${count(plan.remove.length)} to delete, ${count(plan.unchanged)} unchanged`);
-    let lastShown = 0;
-    const fetched = await fetchInto(rest, project.wpDir, plan.fetch, (files, total) => {
-      if (files - lastShown >= 500) {
-        lastShown = files;
-        log(`  ${count(files)} files, ${bytes(total)}`);
-      }
-    });
+    progress.step("files", { total: plan.fetch.length, unit: "files" });
+    const fetched = await fetchInto(
+      rest,
+      project.wpDir,
+      plan.fetch,
+      (files, total) => progress.update({ done: files, bytes: total }),
+      () => progress.activity(),
+    );
     removeLocal(project.wpDir, plan.remove);
     if (fetched.vanished.length) warnings.push(`${count(fetched.vanished.length)} files disappeared from live during the pull.`);
 
-    log("Starting DDEV and loading the database…");
+    log("Starting DDEV and loading the database (this runs on this Mac: a few minutes for a big site)…");
+    progress.step("loading into DDEV", { network: false });
     project.ddev(["start", "-y"]);
     setTablePrefix(project, info.database.tablePrefix);
     project.syncFiles();
     project.ddev(["import-db", `--file=${dump}`]);
 
     log("Switching addresses to the local copy…");
+    progress.step("switching addresses", { network: false });
     for (const [from, to] of replacements(site.siteUrl, site.homeUrl, localUrl)) {
       project.wp("search-replace", from, to, "--all-tables-with-prefix", "--precise", "--quiet");
     }
@@ -200,7 +225,7 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
       filesUnchanged: plan.unchanged,
       warnings,
     };
-  });
+  }
 }
 
 /** Plugins that usually hold live keys (payments, email sending, CRMs, automations). */

@@ -1,6 +1,6 @@
 {
   "bridge": {
-    "version": "0.1.1",
+    "version": "0.1.2",
     "protocolVersion": 1,
     "deadline": "2026-11-08T22:00:00+00:00"
   },
@@ -42,7 +42,7 @@
     "version": "1.0.7"
   },
   "plugins": [
-    { "file": "wpsync-bridge/wpsync-bridge.php", "name": "wpsync bridge", "version": "0.1.1", "active": true }
+    { "file": "wpsync-bridge/wpsync-bridge.php", "name": "wpsync bridge", "version": "0.1.2", "active": true }
   ],
   "muPlugins": [],
   "dropins": [],

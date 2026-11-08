@@ -197,5 +197,5 @@ describe("wpsync push, rollback and finalize", () => {
 function readdirStage(): string[] {
   syncFiles();
   const uploads = liveFile("wp-content/uploads");
-  return existsSync(uploads) ? readdirSync(uploads).filter((n) => /^wpsync-[a-z0-9]{12}$/.test(n)) : [];
+  return existsSync(uploads) ? readdirSync(uploads).filter((n) => /^wpsync-stage-[a-z0-9]{12}$/.test(n)) : [];
 }
