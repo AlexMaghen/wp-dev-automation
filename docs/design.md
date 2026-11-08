@@ -132,7 +132,7 @@ Before anything changes on live:
 1. Refuse if git has uncommitted changes.
 2. Show what will happen: database size, number of files changed and deleted, plugins added or
    removed compared with live. **`--dry-run` stops here.** Otherwise the developer types the live
-   domain to confirm.
+   domain to confirm, in a native macOS dialog, not the terminal (section 14.6).
 3. **Back up live locally:** a full pull into `backups/live-before-push-<time>/`.
 
 Then:
@@ -213,8 +213,25 @@ access to the repo.
   looks; custom PHP last, in a prefixed plugin; nothing an editor might change is hard-coded),
   safety rules (nothing touches live without a yes) and the definition of done. `wpsync` copies
   them into each site's `CLAUDE.md`.
-- **Install helper:** the plugin's setup skill installs `wpsync`, DDEV and Docker Desktop with
+- **Install helper:** the plugin's setup skill installs `wpsync`, DDEV and Docker (OrbStack or Docker Desktop) with
   Homebrew where missing, and says when a password or click is needed.
+- **Start gate (before any setup):** two things only the developer can do, so the skill stops
+  and asks for them before anything else happens:
+  1. **Session folder.** A Claude Code session's folder is fixed when it starts, and the site's
+     `CLAUDE.md` and `.claude/settings.json` load only in a session started there. The skill asks
+     for the site URL first (no side effects), proposes the folder (default
+     `~/wp-sites/<domain>/`, or one the developer names), creates it, and writes
+     `.claude/settings.json` (pre-approves `ddev`, `wpsync` except push/rollback/finalize, `git`,
+     `brew`) and a `.wpsync.json` marked `setup: pending`.
+  2. **Permission mode.** Claude can't change its own mode. The skill tells the developer to start
+     a new session in that folder and, if they want, choose Bypass permissions: in the desktop
+     app, a new session on that folder with the permission-mode picker set to Bypass permissions;
+     in a terminal, `cd <folder> && claude --dangerously-skip-permissions`. Without it, the
+     pre-approved commands keep prompts rare.
+  Then the developer says "continue wp-dev". The skill sees it's in the right folder with
+  `setup: pending` and goes on to prerequisites, connect, pull and verify. If it's invoked in any
+  other folder, it repeats the gate instead of starting. The skill can't detect the permission
+  mode, so it asks once and moves on either way.
 
 ## 11. Repository layout
 
@@ -249,12 +266,127 @@ against the zod schemas.
 1. `protocol` + bridge `info`, with the contract test harness
 2. `wpsync connect` (dialog, login, Application Password, Keychain, bridge upload)
 3. Pull: database, files, DDEV config, search-replace
-4. Site template + Claude plugin rules and skills
-5. Push: staging, apply steps, table swap, verify, rollback, finalize
-6. `doctor`, `status`, `disconnect`, bridge self-update
+4. Site template, Claude plugin (`wp-dev` skill, rules), `doctor`, `new`, `verify`, connect
+   fallback (plan: section 14)
+5. Push: staging, apply steps, table swap, verify, rollback, finalize (with section 14.6)
+6. `status`, `disconnect`, bridge self-update
 7. Test plan steps 2–5, then a setup guide for the friend
 
-## 14. Open questions
+## 14. Build step 4 plan: the `wp-dev` skill and up-front checks
+
+The developer will not be the owner, so the whole flow must work for someone who has never seen
+it: missing tools are found and explained **before** anything is half-done.
+
+### 14.1 Principles
+
+- **Check everything before changing anything.** All checks run first, and every problem is
+  reported in one list, each with its fix. The developer never meets problem 2 only after fixing
+  problem 1.
+- **Every step is safe to re-run.** Each step checks whether it is already done, and progress is
+  recorded in `.wpsync.json`. After any interruption (a crash, a closed laptop, a missing tool),
+  "continue my wp-dev project" picks up where it stopped.
+- **The CLI does the work; the skill guides.** The steps and checks live in `wpsync` (testable):
+  a `wpsync new` command and an expanded `wpsync doctor`. The skill orders the steps and explains
+  them. Text instructions to Claude are guidance, not guarantees.
+- **The rules travel with the plugin.** The owner's global `CLAUDE.md` is not on the developer's
+  Mac. Every rule Claude must follow ships in `claude-plugin/rules/` and is copied into the
+  site's `CLAUDE.md`.
+
+### 14.2 Installing the plugin (the real first step)
+
+The developer installs Claude Code, then the plugin at **user level** from the marketplace, so
+the skill works from any folder. The repo is private, so this needs a GitHub collaborator invite
+and `gh auth login`. Alternative: publish the plugin as its own public repo (the bridge holds no
+secrets). The setup guide (step 7) covers this.
+
+### 14.3 One `wp-dev` skill that picks the phase
+
+It triggers on "new wp-dev project", "pull/refresh my site", "publish", "continue my wp-dev
+project". It reads `.wpsync.json` and `wpsync status` to see where things stand, then runs the
+connect, pull, work or publish part (`wp-connect`, `wp-pull`, `wp-work`, `wp-publish`, section
+10).
+
+### 14.4 Phase 1: set up the local copy
+
+In this order:
+
+1. **Start gate** (section 10): ask for the site URL, create the site folder with
+   `.claude/settings.json` and `.wpsync.json` (`setup: pending`), and have the developer start a
+   new session there (with Bypass permissions if they want it). Nothing else happens until then.
+2. **Mac checks** (`wpsync doctor --local`, no site needed):
+   - macOS version, Apple Silicon or Intel, Xcode Command Line Tools (git), Homebrew
+   - a Docker provider installed **and running** (OrbStack or Docker Desktop; either needs a
+     first launch the developer clicks through)
+   - Docker's disk allocation (Docker Desktop's virtual disk can fill up during a large import)
+   - DDEV, and `mkcert -install` (trusted HTTPS for the local site)
+   - the `wpsync` binary and its version
+3. **Install what's missing.** Steps that need the developer's password (Homebrew, `mkcert
+   -install`, Docker's privileged helper) are hard stops: Claude never types a password, so the
+   skill opens a terminal tab with the command ready and waits while the developer types.
+4. **Site checks** (`wpsync doctor <url>`, before downloading anything):
+   - reachable over HTTPS, is WordPress, REST API answers
+   - not multisite
+   - Application Passwords enabled; the Authorization header gets through the host
+   - plugin uploads allowed (`DISALLOW_FILE_MODS` not set)
+   - live PHP and database versions are ones DDEV supports
+   - **local disk space** of about 2.5× the site's size (dump + imported database + files),
+     from the sizes `info` reports
+   - router DNS-rebinding protection (some routers stop `*.ddev.site` resolving to 127.0.0.1)
+5. **Connect:** the macOS password dialog (section 3). The two-factor/CAPTCHA fallback (the
+   developer pastes an Application Password they made) must be built here, since other people's
+   sites are more likely to have login protection.
+6. **Pull** (section 6).
+7. **Local domain:** keep DDEV's `https://<project>.ddev.site`. It resolves through public DNS,
+   so it needs no `/etc/hosts` edit and no sudo. A custom name like `example.test` is an option
+   only, since it needs a hosts-file edit with a password.
+8. **Make the copy safe to run locally.** The copied database can hold live payment keys, real
+   customer emails, scheduled jobs and webhooks. DDEV catches outgoing mail in Mailpit. Also set
+   `WP_ENVIRONMENT_TYPE=local`, and have the pull report plugins that hold payment or API keys.
+9. **Local login:** the copied database keeps live admin users, so the developer signs in locally
+   with their live password; optionally wpsync creates a local-only admin.
+10. **Verify** (`wpsync verify`):
+    - home page, a few posts and pages, and wp-admin return 200 with no PHP errors in the logs
+    - pretty permalinks work
+    - no live URL left in the database
+    - images load
+    - active plugins and theme match live
+    - a side-by-side screenshot of live and local, checked in the browser
+11. **Hand over.** The skill reads the site's `CLAUDE.md` into the conversation so the rules apply
+    now, and says: "Local site is ready for us to work on together according to your rules. You
+    can view it at {local domain}. How shall we get started?"
+
+### 14.5 Phase 2: work on the local copy
+
+The `wp-work` skill plus the rules files (section 10): WordPress features first, a child theme for
+looks, custom PHP last in a prefixed plugin, git commits as work goes, and a definition of done
+that includes a check in the browser.
+
+### 14.6 Phase 3: publish over production
+
+Section 7 stays as designed. Decided now, built in step 5:
+
+- **Re-run the checks before pushing:** the Application Password is still valid, and the live
+  server has about 2× the site's size free (staging area + saved state), from `info`.
+- **A confirmation only a person can give.** The push confirmation is a native macOS dialog where
+  the developer types the live domain, not a terminal prompt. If Claude runs `wpsync push`,
+  Claude is the one at the terminal, so a terminal prompt is no safeguard. This is what makes
+  Bypass permissions acceptable.
+- **Optional hook** in the plugin that blocks `wpsync push`, `rollback` and `finalize` unless the
+  developer asked for them in this session.
+
+### 14.7 Deliverables for step 4
+
+- `packages/site-template`: DDEV config, `.gitignore`, `CLAUDE.md` template,
+  `.claude/settings.json` allowlist
+- `claude-plugin/`: manifest, `.claude-plugin/marketplace.json`, the `wp-dev` skill and its
+  sub-skills, `rules/*.md`
+- `wpsync doctor --local` and `wpsync doctor <url>` (pulled forward from step 6), `wpsync new`
+  (the resumable phase 1 driver), `wpsync verify`
+- the two-factor/CAPTCHA connect fallback
+- contract tests for doctor and verify against the harness; a first run of the skill end to end
+  against the harness site
+
+## 15. Open questions
 
 - Which hosts the friend's sites are on (some managed hosts block plugin uploads or Application
   Passwords).
