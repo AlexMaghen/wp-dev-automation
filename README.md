@@ -1,7 +1,71 @@
 # wp-dev-automation
 
 Work on a live WordPress site with Claude Code, on your Mac, using **only a WordPress admin
-login**: no hosting panel, SSH, FTP or database access, and no paid migration plugin.
+login**.
+
+## Quick start
+
+**1. Make sure git works.** In Terminal:
+
+```bash
+git --version
+```
+
+If it offers to install developer tools, click **Install** and wait.
+
+**2. Sign in to GitHub** (this repo is private, so you need an invite from Alex):
+
+```bash
+gh auth login
+```
+
+```bash
+gh auth setup-git
+```
+
+No `gh` command? Get it from https://cli.github.com first.
+
+**3. Install the plugin:**
+
+```bash
+claude plugin marketplace add AlexMaghen/wp-dev-automation
+```
+
+```bash
+claude plugin install wp-dev@wp-dev-automation
+```
+
+**4. Copy a site to your Mac.** In the Claude app's **Code** tab, start a session and say:
+
+> new wp-dev project
+
+Give it the site's address, and accept or change the folder it suggests. It then asks you to
+start a **new session in that folder** (choose **Bypass permissions** if you don't want to
+approve each step) and say:
+
+> continue my wp-dev project
+
+When a **macOS dialog** asks for the site's admin username and password, type them there, never
+in the chat. Claude installs anything missing, copies the site, checks it, and tells you where
+to see it.
+
+**5. Work, then publish.** In that folder's session:
+
+- **Change things:** just ask, for example "add a Team page to the main menu". Nothing on the
+  live site changes while you work.
+- **Get the latest from live:** "pull from live".
+- **Put it on the live site:** "publish to live". Claude shows what will change, then a dialog
+  asks you to **type the site's domain**. Afterwards, say **"finalize"** to keep it or **"roll
+  back"** to undo it.
+
+Interrupted? Open a session in the site's folder and say **"continue my wp-dev project"**.
+
+The rest of this page explains each step in more detail.
+
+## How it works
+
+You need only a WordPress admin login: no hosting panel, SSH, FTP or database access, and no
+paid migration plugin.
 
 1. **Pull:** copy the live site (database and files) into a local WordPress running in DDEV.
 2. **Work:** ask Claude for changes. It keeps the site a normal WordPress site that anyone can
