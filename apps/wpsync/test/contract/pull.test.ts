@@ -21,7 +21,10 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { WpsyncError } from "../../src/errors";
 import { init } from "../../src/local-commands";
+import { allOk, formatChecks } from "../../src/doctor";
 import { pull } from "../../src/pull";
+import { status } from "../../src/status";
+import { verify } from "../../src/verify";
 import { MemoryStore } from "../../src/secrets";
 import { siteKey } from "../../src/site";
 
@@ -146,6 +149,18 @@ describe("wpsync pull", () => {
     const home = await fetch(`http://${PULLED_DDEV_NAME}.ddev.site/`);
     expect(home.status).toBe(200);
     expect(await home.text()).toContain("wpsync harness");
+  });
+
+  it("verify and status agree the copy is ready to work on", async () => {
+    const checks = await verify({ dir: PULLED_DIR });
+    expect(allOk(checks), formatChecks(checks)).toBe(true);
+    for (const id of ["home", "login", "permalinks", "live-urls", "plugins", "theme", "php-log"]) {
+      expect(checks.find((c) => c.id === id), id).toBeDefined();
+    }
+    const now = await status({ dir: PULLED_DIR, allowHttp: true }, store);
+    expect(now.phase).toBe("work");
+    expect(now.keyWorks).toBe(true);
+    expect(now.bridgeVersion).toBeTruthy();
   });
 
   it("refreshes with only what changed", async () => {

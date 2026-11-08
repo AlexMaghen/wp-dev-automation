@@ -63,7 +63,7 @@ describe("wpsync init", () => {
     expect(meta).toEqual({ homeUrl: "https://example.com", setup: "pending" });
     const settings = JSON.parse(readFileSync(join(dir, ".claude", "settings.json"), "utf8"));
     expect(settings.permissions.allow).toContain("Bash(ddev *)");
-    expect(settings.permissions.ask.some((rule: string) => rule.includes("push --confirm"))).toBe(true);
+    expect(settings.permissions.ask).toContain("Bash(wpsync push)");
     expect(existsSync(join(dir, ".gitignore"))).toBe(true);
     expect(readFileSync(join(dir, "CLAUDE.md"), "utf8")).toContain("set up, not pulled yet");
   });

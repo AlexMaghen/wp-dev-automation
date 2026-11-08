@@ -7,6 +7,7 @@ import { WpsyncError } from "./errors";
 import { fetchInto, findCodeDrift, listLocal, listRemote, planSync, removeLocal } from "./file-sync";
 import { bytes, count } from "./format";
 import { defaultProjectDir, projectAt, requireDocker, type Project, type ProjectFile } from "./project";
+import { ensureCurrentBridge } from "./bridge-update";
 import { RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
 import { writeClaudeMd } from "./site-files";
@@ -64,7 +65,7 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
   const rest = new RestClient(site, connection.username, connection.applicationPassword);
 
   return rest.withBridge(async () => {
-    const info = await rest.bridge(InfoResponse, ROUTES.info);
+    const info = await ensureCurrentBridge(rest, await rest.bridge(InfoResponse, ROUTES.info), log);
     refuseUnsupported(info);
 
     const project = projectAt(options.dir ?? defaultProjectDir(site.homeUrl));
@@ -149,7 +150,15 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
 
     project.write({
       ...meta,
-      lastPull: { at: now().toISOString(), tables: db.tables, rows: db.rows, files: remote.length, bytes: fetched.bytes },
+      lastPull: {
+        at: now().toISOString(),
+        tables: db.tables,
+        rows: db.rows,
+        files: remote.length,
+        bytes: fetched.bytes,
+        activePlugins: activePluginSlugs(info),
+        theme: info.theme.stylesheet,
+      },
     });
     writeClaudeMd(project.claudeMdPath, info.site.name, {
       status: `pulled from live ${now().toISOString().slice(0, 16).replace("T", " ")} UTC`,
@@ -162,6 +171,14 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
         database: `${settings.database.type} ${settings.database.version}`,
       },
     });
+
+    const sensitive = info.plugins.filter((p) => p.active && SENSITIVE_PLUGIN.test(`${p.file} ${p.name}`));
+    if (sensitive.length) {
+      warnings.push(
+        `These active plugins may hold live payment, email or API keys: ${sensitive.map((p) => p.name).join(", ")}. ` +
+          "The local copy has live's settings: switch them to test mode in the local wp-admin before trying them.",
+      );
+    }
 
     return {
       projectDir: project.dir,
@@ -177,6 +194,18 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
       warnings,
     };
   });
+}
+
+/** Plugins that usually hold live keys (payments, email sending, CRMs, automations). */
+const SENSITIVE_PLUGIN =
+  /woocommerce|stripe|paypal|square|braintree|authorize|mollie|klarna|mailchimp|hubspot|klaviyo|sendgrid|mailgun|postmark|smtp|twilio|zapier|webhook|salesforce|activecampaign|convertkit|give(wp)?\b|memberpress|easy-digital-downloads|gravityforms/i;
+
+/** Active plugins as WP-CLI names them (their folder, or file name for single-file plugins). */
+export function activePluginSlugs(info: InfoResponse): string[] {
+  return info.plugins
+    .filter((p) => p.active && !p.file.startsWith("wpsync-bridge/"))
+    .map((p) => (p.file.includes("/") ? p.file.split("/")[0]! : p.file.replace(/\.php$/, "")))
+    .sort();
 }
 
 function refuseUnsupported(info: InfoResponse): void {

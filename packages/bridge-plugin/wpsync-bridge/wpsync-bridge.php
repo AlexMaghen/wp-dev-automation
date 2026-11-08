@@ -24,6 +24,7 @@ require_once __DIR__ . '/includes/class-wpsync-files.php';
 require_once __DIR__ . '/includes/class-wpsync-maintenance.php';
 require_once __DIR__ . '/includes/class-wpsync-changes.php';
 require_once __DIR__ . '/includes/class-wpsync-stage.php';
+require_once __DIR__ . '/includes/class-wpsync-update.php';
 
 // As early as a plugin can: during a push, everyone but the bridge sees the maintenance page.
 Wpsync_Maintenance::gate();
@@ -90,6 +91,7 @@ function wpsync_register_routes() {
 		WPSYNC_ROUTE_STAGE_APPLY => array( 'POST', array( 'Wpsync_Stage', 'handle_apply' ), array() ),
 		WPSYNC_ROUTE_ROLLBACK    => array( 'POST', array( 'Wpsync_Stage', 'handle_rollback' ), array() ),
 		WPSYNC_ROUTE_FINALIZE    => array( 'POST', array( 'Wpsync_Stage', 'handle_finalize' ), array() ),
+		WPSYNC_ROUTE_SELF_UPDATE => array( 'POST', array( 'Wpsync_Update', 'handle' ), array() ),
 		WPSYNC_ROUTE_FILES_READ  => array(
 			'GET',
 			array( 'Wpsync_Files', 'handle_read' ),

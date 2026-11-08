@@ -33,6 +33,8 @@ const liveFile = (path: string) => join(SITE_DIR, "wp", path);
 const localFile = (path: string) => join(PUSHED_DIR, "wp", path);
 
 const store = new MemoryStore();
+/** Stands in for the developer confirming in the macOS dialog. */
+const yes = async () => true;
 const opts = { dir: PUSHED_DIR, allowHttp: true };
 const postTitle = (run: (...a: string[]) => string, id: string) => query(run, `SELECT post_title FROM wp_posts WHERE ID = ${id}`);
 const stageTables = (kind: "n" | "o" | "d") => query(live, `SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'wpsync\\_${kind}\\_%'`);
@@ -107,13 +109,22 @@ describe("wpsync push, rollback and finalize", () => {
     expect(wpOk("plugin", "is-active", "wpsync-bridge")).toBe(false);
   });
 
-  it("refuses a confirmation that isn't the live host", async () => {
-    await expectCode(push({ ...opts, confirm: "example.com" }, { store }), "confirm_mismatch");
+  it("changes nothing unless the developer confirms in the dialog", async () => {
+    let asked = "";
+    const decline = async (request: { host: string; summary: string }) => {
+      asked = `${request.host}\n${request.summary}`;
+      return false;
+    };
+    await expectCode(push(opts, { store, confirm: decline }), "not_confirmed");
+    expect(asked).toContain(HOST);
+    expect(asked).toContain(SEED.unicodeFile);
+    expect(existsSync(liveFile(NEW_FILE))).toBe(false);
+    await expectCode(push(opts, { store }), "not_confirmed");
   });
 
   it("publishes: live becomes the local copy, keeps its own config, and still lets wpsync in", async () => {
     const liveConfig = readFileSync(liveFile("wp-config.php"), "utf8");
-    const result = await push({ ...opts, confirm: HOST }, { store });
+    const result = await push(opts, { store, confirm: yes });
     expect(result.applied).toBe(true);
     expect(result.checks?.every((c) => c.ok)).toBe(true);
     syncFiles(); // the bridge wrote inside the container
@@ -150,11 +161,11 @@ describe("wpsync push, rollback and finalize", () => {
   });
 
   it("won't start another push before this one is finalized or rolled back", async () => {
-    await expectCode(push({ ...opts, confirm: HOST }, { store }), "push_pending");
+    await expectCode(push(opts, { store, confirm: yes }), "push_pending");
   });
 
   it("rolls back: live is exactly as before the push", async () => {
-    await rollback(opts, { store });
+    await rollback(opts, { store, confirm: yes });
     syncFiles();
     expect(postTitle(live, editedPostId)).toBe("Seed post 3");
     expect(postTitle(live, livePostId)).toBe("Seed post 4 (edited on live)");
@@ -169,9 +180,9 @@ describe("wpsync push, rollback and finalize", () => {
   });
 
   it("publishes again and finalizes: the saved old version is deleted", async () => {
-    const result = await push({ ...opts, confirm: HOST }, { store });
+    const result = await push(opts, { store, confirm: yes });
     expect(result.applied).toBe(true);
-    await finalize(opts, { store });
+    await finalize(opts, { store, confirm: yes });
     expect(postTitle(live, editedPostId)).toBe("Seed post 3 (edited locally)");
     expect(stageTables("o")).toBe("0");
     expect(readdirStage()).toEqual([]);

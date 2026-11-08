@@ -29,6 +29,9 @@ export const ProjectFile = z.object({
       rows: z.number(),
       files: z.number(),
       bytes: z.number(),
+      /** Live's active plugins (folder names) and theme at the pull, for wpsync verify. */
+      activePlugins: z.array(z.string()).optional(),
+      theme: z.string().optional(),
     })
     .optional(),
   lastPush: z

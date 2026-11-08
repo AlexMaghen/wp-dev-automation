@@ -20,6 +20,8 @@ import { bytes, count } from "./format";
 import { http, parseJson } from "./http";
 import { projectAt, requireDocker, type Project, type ProjectFile } from "./project";
 import { exportDatabase, pieces, planPush, scratchDir, toLiveReplacements, writeFilesArchive, type PushFilePlan } from "./push-local";
+import type { ConfirmProvider } from "./confirm-dialog";
+import { ensureCurrentBridge } from "./bridge-update";
 import { RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
 import { discoverSite, siteKey, type Site } from "./site";
@@ -29,8 +31,6 @@ export interface PushOptions {
   dir?: string;
   /** Show what would change, change nothing. */
   dryRun?: boolean;
-  /** The live site's host name, typed to confirm a real push. */
-  confirm?: string;
   includeHtaccess?: boolean;
   /** Only for local development sites (DDEV); real sites must use HTTPS. */
   allowHttp?: boolean;
@@ -39,7 +39,19 @@ export interface PushOptions {
 
 export interface PushDeps {
   store: SecretStore;
+  /** The developer's confirmation (a macOS dialog). Required for anything that changes live. */
+  confirm?: ConfirmProvider;
   now?: () => Date;
+}
+
+async function confirmed(deps: PushDeps, request: Parameters<ConfirmProvider>[0]): Promise<void> {
+  if (!deps.confirm) throw new WpsyncError("not_confirmed", "Changing the live site needs the developer's confirmation.");
+  if (!(await deps.confirm(request))) {
+    throw new WpsyncError(
+      "not_confirmed",
+      request.action === "push" ? `The domain typed wasn't ${request.host}, so nothing was published.` : "Not confirmed, so nothing was changed.",
+    );
+  }
 }
 
 export interface PluginChange {
@@ -192,16 +204,21 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
   project.ddev(["start", "-y"]);
 
   return rest.withBridge(async () => {
-    const info = await rest.bridge(InfoResponse, ROUTES.info);
+    const info = await ensureCurrentBridge(rest, await rest.bridge(InfoResponse, ROUTES.info), log);
     if (!info.capabilities.writable.abspath || !info.capabilities.writable.contentDir) {
       throw new WpsyncError("not_writable", "WordPress can't write its own files on this host, so wpsync can't publish to it.");
     }
     const plan = await makePlan(ctx, info, includeHtaccess);
-    if (options.dryRun || !options.confirm) return { plan, applied: false };
+    if (options.dryRun) return { plan, applied: false };
 
-    if (options.confirm.toLowerCase() !== plan.host.toLowerCase()) {
-      throw new WpsyncError("confirm_mismatch", `--confirm must be the live site's host, ${plan.host}.`);
+    // Re-check before changing anything (design section 14.6). The key just worked to switch
+    // the bridge on; the server needs room for the staging area and the saved old version.
+    const free = info.capabilities.diskFreeBytes;
+    const needed = 2 * (plan.database.bytes + plan.files.uploadBytes);
+    if (free !== null && free < needed) {
+      throw new WpsyncError("insufficient_space", `The live server has ${bytes(free)} free; publishing needs about ${bytes(needed)}.`, "Ask the host for more space, or delete old backups on the server.");
     }
+    await confirmed(deps, { action: "push", host: plan.host, summary: describePlan(plan) });
 
     // 1. Back up what this push replaces: live's database, and live's copies of every file
     //    that will be overwritten or deleted.
@@ -272,6 +289,33 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
   });
 }
 
+/** The plan in words: printed by a dry run and shown in the confirmation dialog. */
+export function describePlan(plan: PushPlan): string {
+  const lines = [`Publishing would replace ${plan.homeUrl} with this local copy:`];
+  lines.push(`  Database   ${count(plan.database.tables)} tables (${bytes(plan.database.bytes)})`);
+  lines.push(`  Files      ${count(plan.files.upload.length)} to upload (${bytes(plan.files.uploadBytes)}), ${count(plan.files.remove.length)} to delete on live`);
+  for (const path of plan.files.remove.slice(0, 10)) lines.push(`               delete ${path}`);
+  if (plan.files.remove.length > 10) lines.push(`               …and ${count(plan.files.remove.length - 10)} more`);
+  if (plan.theme.live !== plan.theme.local) lines.push(`  Theme      ${plan.theme.live} → ${plan.theme.local}`);
+  const { added, removed, updated } = plan.plugins;
+  if (added.length) lines.push(`  Plugins added    ${added.map((p) => `${p.name} ${p.local}`).join(", ")}`);
+  if (removed.length) lines.push(`  Plugins removed  ${removed.map((p) => `${p.name} ${p.live}`).join(", ")}`);
+  if (updated.length) lines.push(`  Plugins updated  ${updated.map((p) => `${p.name} ${p.live} → ${p.local}`).join(", ")}`);
+  const changes = plan.liveChanges;
+  if (changes) {
+    const posts = Object.entries(changes.posts).map(([type, n]) => `${count(n)} ${type}`);
+    const parts = [...posts, changes.comments ? `${count(changes.comments)} comments` : "", changes.users ? `${count(changes.users)} new users` : ""].filter(Boolean);
+    lines.push(
+      parts.length
+        ? `\nWarning: since ${changes.since}, people changed things on live that publishing will overwrite: ${parts.join(", ")}. Pull first to keep them.`
+        : `\nNothing changed on live since ${changes.since}.`,
+    );
+  } else {
+    lines.push("\nwpsync can't tell what changed on live: this copy has no pull time.");
+  }
+  return lines.join("\n");
+}
+
 async function upload(rest: RestClient, stage: string, part: StagePart, path: string, size: number): Promise<number> {
   const queue: Array<{ seq: number; data: Buffer }> = [];
   let seq = 0;
@@ -327,6 +371,7 @@ export async function rollback(options: { dir?: string; allowHttp?: boolean; log
   const ctx = await open(options, deps.store);
   const push = ctx.meta.lastPush;
   if (!push || push.finalized) throw new WpsyncError("nothing_to_roll_back", "There's no push to roll back (the last one was finalized, or there wasn't one).");
+  await confirmed(deps, { action: "rollback", host: new URL(ctx.site.homeUrl).host, summary: `The publish of ${push.at} will be undone.` });
   await ctx.rest.withBridge(async () => {
     const result = await runSteps(ctx.rest, ROUTES.rollback, { stage: push.stageId }, ctx.log);
     if (result.step !== "rolled-back") throw new WpsyncError("rollback_failed", `Rollback stopped: ${result.error ?? "unknown error"}`);
@@ -340,6 +385,7 @@ export async function finalize(options: { dir?: string; allowHttp?: boolean; log
   const ctx = await open(options, deps.store);
   const push = ctx.meta.lastPush;
   if (!push || push.finalized) throw new WpsyncError("nothing_to_finalize", "There's no push waiting to be finalized.");
+  await confirmed(deps, { action: "finalize", host: new URL(ctx.site.homeUrl).host, summary: `Keeps the publish of ${push.at}.` });
   await ctx.rest.withBridge(async () => {
     const result = await runSteps(ctx.rest, ROUTES.finalize, { stage: push.stageId }, ctx.log);
     if (result.step !== "finalized") throw new WpsyncError("finalize_failed", `Finalize stopped: ${result.error ?? "unknown error"}`);

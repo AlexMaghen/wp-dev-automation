@@ -73,14 +73,19 @@ what they mean.
 ### 3. Check the site
 
 `wpsync doctor <site-url>` (read-only). Before connecting it checks the site is WordPress with
-its REST API, Application Passwords are on, and the host passes the Authorization header. Fix
-or explain each FIX before going on; most are hosting or security-plugin settings the developer
-has to ask someone about.
+its REST API and that Application Passwords are on. (Whether the host passes the Authorization
+header can only be tested with a real key, so that's checked once wpsync connects.) Fix or
+explain each FIX before going on; most are hosting or security-plugin settings the developer has
+to ask someone about.
 
 ### 4. Connect
 
-The `wp-connect` skill. Afterwards run `wpsync doctor <site-url>` again: it now also checks
-multisite, file permissions, versions, and disk space on this Mac and the server.
+The `wp-connect` skill. Afterwards run `wpsync doctor <site-url>` again: it now also checks the
+Authorization header, multisite, file permissions, versions, and disk space on this Mac and the
+server.
+
+(`wpsync new <site-url>` runs steps 2 to 7 in one go and stops at the first thing that needs the
+developer; it's handy for resuming. Step by step, as here, explains more along the way.)
 
 ### 5. Pull
 

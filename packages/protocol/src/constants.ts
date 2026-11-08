@@ -44,6 +44,7 @@ export const ROUTES = {
   stageApply: "/stage/apply",
   rollback: "/rollback",
   finalize: "/finalize",
+  selfUpdate: "/self-update",
 } as const;
 
 /**

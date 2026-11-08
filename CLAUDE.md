@@ -3,10 +3,9 @@
 Pull a live WordPress site into local DDEV, work on it, publish it back to replace live,
 with only a WordPress admin login (no hosting access, no paid migration plugin).
 
-**Status: design in `docs/design.md` (read it first). Build steps 1–5 of its section 13 are done
-(2026-11-08): protocol + bridge `info`, `wpsync connect`, `wpsync pull`, the site template +
-Claude plugin, and `wpsync push` / `rollback` / `finalize`. Next: the rest of section 14
-(doctor, verify, status, new, the push confirmation dialog, the login fallback), then step 6.**
+**Status: design in `docs/design.md` (read it first). Build steps 1–6 of its section 13 are done
+(2026-11-08), including section 14 (doctor, new, verify, status, the confirmation dialogs, the
+login fallback, self-update, disconnect). Next: step 7, testing on real hosts.**
 Not built yet from step 2: the fallback for sites whose login is blocked (two-factor, CAPTCHA),
 where the developer pastes an Application Password they made themselves.
 
@@ -24,6 +23,9 @@ where the developer pastes an Application Password they made themselves.
 - `claude plugin validate .` checks the marketplace and plugin manifests.
 - Run the CLI with `apps/wpsync/node_modules/.bin/bun apps/wpsync/src/main.ts`; `pnpm --filter
   wpsync build` compiles standalone binaries into `apps/wpsync/dist/`.
+- Changing live (`push`, `rollback`, `finalize`) needs a person to confirm in a macOS dialog
+  (`confirm-dialog.ts`); never add a flag or environment variable that skips it. Tests pass a
+  `confirm` function instead.
 - Claude never handles a site password: `wpsync connect` takes it through a macOS dialog the
   person types into. Contract tests pass harness-generated throwaway passwords in code instead.
 - `pnpm --filter @wp-dev-automation/bridge-plugin test` checks the PHP without DDEV: the path

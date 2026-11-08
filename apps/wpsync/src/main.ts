@@ -4,13 +4,18 @@
  * administrator login. See docs/design.md.
  */
 import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
-import { connect } from "./connect";
+import { connect, disconnect } from "./connect";
+import { allOk, checkLocal, checkSite, formatChecks } from "./doctor";
+import { newProject } from "./new-project";
+import { status } from "./status";
+import { verify } from "./verify";
 import { macLoginDialog } from "./dialog";
 import { WpsyncError } from "./errors";
 import { bytes, count } from "./format";
 import { init, updateProjectRules } from "./local-commands";
 import { pull } from "./pull";
-import { finalize, push, rollback, type PushPlan } from "./push";
+import { describePlan, finalize, push, rollback } from "./push";
+import { macApplicationPasswordDialog, macConfirmDialog } from "./confirm-dialog";
 import { MacKeychain } from "./secrets";
 
 const VERSION = "0.1.0";
@@ -18,13 +23,32 @@ const VERSION = "0.1.0";
 const USAGE = `wpsync ${VERSION}
 
 Usage:
+  wpsync new <site-url> [--dir <folder>]
+      Set up a local copy, step by step, picking up where it stopped: the folder (start
+      gate), checks of this Mac and the site, connect, pull, verify. Stops at the first
+      thing you need to do, listing everything that needs fixing.
+
   wpsync init <site-url> [--dir <folder>]
       Make the site's project folder (default ~/wp-sites/<host>) with its CLAUDE.md
       and Claude Code permissions, ready for a session started in it. Contacts nothing.
 
-  wpsync connect <site-url> [--user <username>]
+  wpsync connect <site-url> [--user <username>] [--application-password]
       Sign in once (a macOS dialog asks for the password), create wpsync's own
-      Application Password, and install the wpsync bridge, switched off.
+      Application Password, and install the wpsync bridge, switched off. For sites with
+      a protected login, --application-password asks for one you made in your profile.
+
+  wpsync doctor --local | <site-url> [--json]
+      Check this Mac, or a site, before anything changes; lists every problem with its fix.
+
+  wpsync status [--dir <folder>] [--json]
+      Where a site project stands, and what to do next.
+
+  wpsync verify [--dir <folder>] [--json]
+      Check the local copy works: pages, wp-admin, permalinks, leftover live addresses,
+      images, and the same plugins and theme as live.
+
+  wpsync disconnect <site-url>
+      Remove the bridge from the site and revoke wpsync's key.
 
   wpsync pull <site-url> [--dir <folder>] [--name <ddev-name>] [--overwrite-code]
       Copy the live site into a local DDEV project (default folder:
@@ -32,16 +56,18 @@ Usage:
       pulls download only what changed. Code you track in git is never
       overwritten unless you add --overwrite-code. The live site is only read.
 
-  wpsync push [--dry-run] [--confirm <live-host>] [--include-htaccess] [--dir <folder>]
-      Publish: replace the live site (database and files) with the local copy. Without
-      --confirm it only shows what would change. Live's wp-config.php, .htaccess and
-      host-added files are kept. Backs up live into backups/ first; checks live after.
+  wpsync push [--dry-run] [--include-htaccess] [--dir <folder>]
+      Publish: replace the live site (database and files) with the local copy. A macOS
+      dialog shows what will change and asks you to type the live domain; --dry-run
+      only shows it. Live's wp-config.php, .htaccess and host-added files are kept.
+      Backs up what changes into backups/ first; checks live after.
 
   wpsync rollback [--dir <folder>]
-      Put live back as it was before the last push.
+      Put live back as it was before the last push (confirmed in a dialog).
 
   wpsync finalize [--dir <folder>]
-      Keep the last push and delete the old version saved on the server.
+      Keep the last push and delete the old version saved on the server (confirmed in
+      a dialog).
 
   wpsync update-rules [--dir <folder>]
       Refresh the WordPress rules in a project's CLAUDE.md from this wpsync.
@@ -59,7 +85,7 @@ interface Parsed {
 }
 
 /** Flags that take a value (--user admin); every other flag is a switch. */
-const VALUE_FLAGS = new Set(["user", "dir", "name", "confirm"]);
+const VALUE_FLAGS = new Set(["user", "dir", "name"]);
 
 function stringFlag(args: Parsed, name: string): string | undefined {
   const value = args.flags.get(name);
@@ -93,10 +119,11 @@ async function runConnect(args: Parsed): Promise<void> {
     {
       url,
       username: typeof user === "string" ? user : undefined,
+      useApplicationPassword: args.flags.has("application-password"),
       allowHttp: args.flags.has("allow-http"),
       log: (line) => console.log(line),
     },
-    { credentials: macLoginDialog, store: new MacKeychain() },
+    { credentials: macLoginDialog, applicationPassword: macApplicationPasswordDialog, store: new MacKeychain() },
   );
 
   const { info } = result;
@@ -161,48 +188,21 @@ function runUpdateRules(args: Parsed): void {
   console.log(result.changed ? `Updated the rules in ${result.path}` : `The rules in ${result.path} are already current.`);
 }
 
-function printPlan(plan: PushPlan): void {
-  const lines = [`Publishing would replace ${plan.homeUrl} with this local copy:`];
-  lines.push(`  Database   ${count(plan.database.tables)} tables (${bytes(plan.database.bytes)})`);
-  lines.push(`  Files      ${count(plan.files.upload.length)} to upload (${bytes(plan.files.uploadBytes)}), ${count(plan.files.remove.length)} to delete on live`);
-  for (const path of plan.files.remove.slice(0, 10)) lines.push(`               delete ${path}`);
-  if (plan.files.remove.length > 10) lines.push(`               …and ${count(plan.files.remove.length - 10)} more`);
-  if (plan.theme.live !== plan.theme.local) lines.push(`  Theme      ${plan.theme.live} → ${plan.theme.local}`);
-  const { added, removed, updated } = plan.plugins;
-  if (added.length) lines.push(`  Plugins +  ${added.map((p) => `${p.name} ${p.local}`).join(", ")}`);
-  if (removed.length) lines.push(`  Plugins −  ${removed.map((p) => `${p.name} ${p.live}`).join(", ")}`);
-  if (updated.length) lines.push(`  Plugins    ${updated.map((p) => `${p.name} ${p.live} → ${p.local}`).join(", ")}`);
-  const changes = plan.liveChanges;
-  if (changes) {
-    const posts = Object.entries(changes.posts).map(([type, n]) => `${count(n)} ${type}`);
-    const parts = [...posts, changes.comments ? `${count(changes.comments)} comments` : "", changes.users ? `${count(changes.users)} new users` : ""].filter(Boolean);
-    lines.push(
-      parts.length
-        ? `\n  Warning: since ${changes.since}, people changed things on live that publishing will overwrite: ${parts.join(", ")}. Pull first to keep them.`
-        : `\n  Nothing changed on live since ${changes.since}.`,
-    );
-  } else {
-    lines.push("\n  wpsync can't tell what changed on live: this copy has no pull time.");
-  }
-  console.log(lines.join("\n"));
-}
-
 async function runPush(args: Parsed): Promise<void> {
-  const confirm = stringFlag(args, "confirm");
+  const dryRun = args.flags.has("dry-run");
   const result = await push(
     {
       dir: stringFlag(args, "dir"),
-      dryRun: args.flags.has("dry-run") || !confirm,
-      confirm,
+      dryRun,
       includeHtaccess: args.flags.has("include-htaccess"),
       allowHttp: args.flags.has("allow-http"),
       log: (line) => console.log(line),
     },
-    { store: new MacKeychain() },
+    { store: new MacKeychain(), confirm: macConfirmDialog },
   );
   if (!result.applied) {
-    printPlan(result.plan);
-    console.log(`\nTo publish: wpsync push --confirm ${result.plan.host}`);
+    console.log(describePlan(result.plan));
+    console.log("\nTo publish: wpsync push (a dialog asks you to type the live domain).");
     return;
   }
   console.log(`\nPublished to ${result.plan.homeUrl}`);
@@ -213,13 +213,78 @@ async function runPush(args: Parsed): Promise<void> {
 }
 
 async function runRollback(args: Parsed): Promise<void> {
-  await rollback({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http"), log: (line) => console.log(line) }, { store: new MacKeychain() });
+  await rollback({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http"), log: (line) => console.log(line) }, { store: new MacKeychain(), confirm: macConfirmDialog });
   console.log("Rolled back: live is as it was before the last push.");
 }
 
 async function runFinalize(args: Parsed): Promise<void> {
-  await finalize({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http"), log: (line) => console.log(line) }, { store: new MacKeychain() });
+  await finalize({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http"), log: (line) => console.log(line) }, { store: new MacKeychain(), confirm: macConfirmDialog });
   console.log("Finalized: the previous version on the server is deleted. (backups/ still has a local copy.)");
+}
+
+function print(args: Parsed, value: unknown, text: string): void {
+  console.log(args.flags.has("json") ? JSON.stringify(value, null, 2) : text);
+}
+
+async function runDoctor(args: Parsed): Promise<number> {
+  const url = args.positional[0];
+  if (!url && !args.flags.has("local")) throw new UsageError("doctor needs --local or a site address.");
+  const checks = url ? await checkSite(url, new MacKeychain(), { allowHttp: args.flags.has("allow-http") }) : await checkLocal();
+  print(args, checks, `${formatChecks(checks)}\n\n${allOk(checks) ? "Nothing to fix." : "Fix the FIX lines above, then run this again."}`);
+  return allOk(checks) ? 0 : 1;
+}
+
+async function runStatus(args: Parsed): Promise<void> {
+  const result = await status({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http") }, new MacKeychain());
+  const lines = [`Folder   ${result.dir}`, `Phase    ${result.phase}`];
+  if (result.homeUrl) lines.push(`Live     ${result.homeUrl}${result.connected ? (result.keyWorks ? " (connected)" : " (key no longer works)") : " (not connected)"}`);
+  if (result.localUrl) lines.push(`Local    ${result.localUrl}${result.ddevRunning ? " (running)" : ""}`);
+  if (result.lastPull) lines.push(`Pulled   ${result.lastPull}`);
+  if (result.lastPush) lines.push(`Pushed   ${result.lastPush.at}${result.lastPush.finalized ? "" : " (waiting for finalize or rollback)"}`);
+  lines.push(`Next     ${result.next}`);
+  print(args, result, lines.join("\n"));
+}
+
+async function runVerify(args: Parsed): Promise<number> {
+  const checks = await verify({ dir: stringFlag(args, "dir") });
+  print(args, checks, `${formatChecks(checks)}\n\n${allOk(checks) ? "The local copy works." : "Fix the FIX lines above, then run wpsync verify again."}`);
+  return allOk(checks) ? 0 : 1;
+}
+
+async function runNew(args: Parsed): Promise<number> {
+  const url = args.positional[0];
+  if (!url) throw new UsageError("new needs the site's address, e.g. wpsync new https://example.com");
+  const result = await newProject(
+    url,
+    { dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http"), log: (line) => console.log(line) },
+    { store: new MacKeychain(), credentials: macLoginDialog },
+  );
+  if (args.flags.has("json")) {
+    console.log(JSON.stringify(result, null, 2));
+  } else if (result.stoppedAt === "start-gate") {
+    console.log(`Created ${result.dir} for ${result.homeUrl}.
+
+Next: start a new Claude Code session in that folder (optionally with Bypass permissions),
+then say "continue my wp-dev project" (or run wpsync new ${result.homeUrl} there).`);
+  } else {
+    console.log(formatChecks(result.checks));
+    console.log(
+      result.stoppedAt === "done"
+        ? `\nLocal site is ready at ${result.localUrl}.`
+        : `\nStopped at the ${result.stoppedAt === "mac-checks" ? "Mac" : "site"} checks: fix the FIX lines, then run wpsync new ${result.homeUrl} again.`,
+    );
+  }
+  return result.stoppedAt === "done" || result.stoppedAt === "start-gate" ? 0 : 1;
+}
+
+async function runDisconnect(args: Parsed): Promise<void> {
+  const url = args.positional[0];
+  if (!url) throw new UsageError("disconnect needs the site's address.");
+  const result = await disconnect({ url, allowHttp: args.flags.has("allow-http") }, { store: new MacKeychain() });
+  console.log(`Disconnected from ${result.homeUrl}.
+  Bridge plugin  ${result.bridgeRemoved ? "removed" : "not removed: delete wpsync bridge under Plugins in wp-admin"}
+  wpsync's key   ${result.keyRevoked ? "revoked" : "not revoked: remove it under Users → Profile → Application Passwords"}
+  Keychain       forgotten`);
 }
 
 class UsageError extends Error {}
@@ -242,6 +307,18 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case "finalize":
         await runFinalize(args);
+        return 0;
+      case "new":
+        return await runNew(args);
+      case "doctor":
+        return await runDoctor(args);
+      case "status":
+        await runStatus(args);
+        return 0;
+      case "verify":
+        return await runVerify(args);
+      case "disconnect":
+        await runDisconnect(args);
         return 0;
       case "init":
         runInit(args);

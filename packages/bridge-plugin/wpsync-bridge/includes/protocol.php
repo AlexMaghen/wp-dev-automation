@@ -70,6 +70,7 @@ const WPSYNC_ROUTE_STAGE_CHUNK = '/stage/chunk';
 const WPSYNC_ROUTE_STAGE_APPLY = '/stage/apply';
 const WPSYNC_ROUTE_ROLLBACK = '/rollback';
 const WPSYNC_ROUTE_FINALIZE = '/finalize';
+const WPSYNC_ROUTE_SELF_UPDATE = '/self-update';
 
 const WPSYNC_ERROR_NOT_LOGGED_IN = 'wpsync_not_logged_in';
 const WPSYNC_ERROR_FORBIDDEN = 'wpsync_forbidden';

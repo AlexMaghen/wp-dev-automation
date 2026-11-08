@@ -305,6 +305,11 @@ against the zod schemas.
 6. `status`, `disconnect`, bridge self-update
 7. Test plan steps 2–5, then a setup guide for the friend
 
+Status, 2026-11-08: steps 1–6 are built and pass their contract tests against the DDEV harness,
+as is the setup guide (`docs/setup-guide.md`). Step 7's test-plan items 1 and 5 (local "live"
+site, failure drills) run on the harness; items 2–4 (the owner's server, another host, a large
+site) need the owner.
+
 ## 14. Build step 4 plan: the `wp-dev` skill and up-front checks
 
 The developer will not be the owner, so the whole flow must work for someone who has never seen

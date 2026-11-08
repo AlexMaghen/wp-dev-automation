@@ -1,15 +1,23 @@
 import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   BASE_URL,
+  SITE_DIR,
   applicationPasswordNames,
   clearApplicationPasswords,
+  freshApplicationPassword,
   freshLoginPassword,
+  installBridge,
   removeBridge,
+  syncFiles,
   wp,
   wpOk,
 } from "@wp-dev-automation/test-harness";
 import { beforeAll, describe, expect, it } from "vitest";
-import { connect } from "../../src/connect";
+import { connect, disconnect } from "../../src/connect";
+import { allOk, checkSite, formatChecks } from "../../src/doctor";
 import type { CredentialsProvider } from "../../src/dialog";
 import { WpsyncError } from "../../src/errors";
 import { RestClient } from "../../src/rest-client";
@@ -99,6 +107,61 @@ describe("wpsync connect", () => {
     const site = await discoverSite(harness().baseUrl, { allowHttp: true });
     const old = await new RestClient(site, before.username, before.applicationPassword).get("/wp/v2/users/me");
     expect(old.status).toBe(401);
+  });
+
+  it("doctor checks the site before and after connecting", async () => {
+    const before = await checkSite(harness().baseUrl, new MemoryStore(), { allowHttp: true });
+    expect(allOk(before), formatChecks(before)).toBe(true);
+    expect(before.find((c) => c.id === "authorization-header")?.warning).toBe(true);
+    expect(before.find((c) => c.id === "connected")?.warning).toBe(true);
+
+    const after = await checkSite(harness().baseUrl, store, { allowHttp: true });
+    expect(allOk(after), formatChecks(after)).toBe(true);
+    expect(after.find((c) => c.id === "authorization-header")?.ok).toBe(true);
+    for (const id of ["connected", "bridge", "multisite", "file-mods", "local-space", "server-space"]) {
+      expect(after.find((c) => c.id === id), id).toBeDefined();
+    }
+    expect(wpOk("plugin", "is-active", "wpsync-bridge")).toBe(false);
+  });
+
+  it("updates an older bridge on the site by itself", async () => {
+    const main = join(SITE_DIR, "wp/wp-content/plugins/wpsync-bridge/wpsync-bridge.php");
+    const constants = join(SITE_DIR, "wp/wp-content/plugins/wpsync-bridge/includes/protocol.php");
+    writeFileSync(main, readFileSync(main, "utf8").replace(`Version:           ${BRIDGE_VERSION}`, "Version:           0.0.1"));
+    writeFileSync(constants, readFileSync(constants, "utf8").replace(`WPSYNC_BRIDGE_VERSION = '${BRIDGE_VERSION}'`, "WPSYNC_BRIDGE_VERSION = '0.0.1'"));
+    syncFiles();
+    expect(wp("plugin", "get", "wpsync-bridge", "--field=version")).toBe("0.0.1");
+
+    const result = await connect(options(), deps(typed("admin", harness().adminPassword)));
+    expect(result.info.bridge.version).toBe(BRIDGE_VERSION);
+    expect(wp("plugin", "get", "wpsync-bridge", "--field=version")).toBe(BRIDGE_VERSION);
+    expect(wpOk("plugin", "is-active", "wpsync-bridge")).toBe(false);
+  });
+
+  it("disconnects: removes the bridge and forgets the key", async () => {
+    const result = await disconnect({ url: harness().baseUrl, allowHttp: true }, { store });
+    expect(result.bridgeRemoved).toBe(true);
+    expect(wpOk("plugin", "is-installed", "wpsync-bridge")).toBe(false);
+    expect(store.entries.size).toBe(0);
+    // WordPress may refuse to let a key revoke itself; then the developer is told to do it.
+    expect(applicationPasswordNames("admin")).toHaveLength(result.keyRevoked ? 0 : 1);
+    clearApplicationPasswords("admin");
+  });
+
+  it("falls back to an Application Password the developer made, with a manual bridge upload", async () => {
+    const [username, applicationPassword] = freshApplicationPassword("admin").split(/:(.*)/s) as [string, string];
+    const downloads = mkdtempSync(join(tmpdir(), "wpsync-downloads-"));
+    const fallbackDeps = { ...deps(typed("x", "x")), applicationPassword: async () => ({ username, applicationPassword }), downloadsDir: downloads };
+
+    await expectCode(connect({ ...options(), useApplicationPassword: true }, fallbackDeps), "bridge_upload_needed");
+    expect(existsSync(join(downloads, "wpsync-bridge.zip"))).toBe(true);
+    expect(store.entries.get(siteKey(harness().baseUrl))?.username).toBe("admin");
+
+    installBridge(); // what the developer does in wp-admin with that zip
+    const result = await connect({ ...options(), useApplicationPassword: true }, fallbackDeps);
+    expect(result.bridge).toBe("already-installed");
+    expect(result.info.bridge.version).toBe(BRIDGE_VERSION);
+    rmSync(downloads, { recursive: true, force: true });
   });
 
   it("refuses plain HTTP for a real site", async () => {

@@ -113,3 +113,14 @@ export const StageProgress = z.object({
 export type StageProgress = z.infer<typeof StageProgress>;
 
 export const StageRequest = z.object({ stage: z.string() });
+
+/**
+ * POST self-update: replace the bridge's own files with a newer version, so sites connected
+ * long ago get fixes without a new login. Paths are relative to the plugin folder; contents
+ * are base64. The plugin stays active.
+ */
+export const SelfUpdateRequest = z.object({
+  version: z.string(),
+  files: z.record(z.string(), z.string()),
+});
+export const SelfUpdateResponse = z.object({ version: z.string() });

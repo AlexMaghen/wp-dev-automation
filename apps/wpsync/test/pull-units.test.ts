@@ -90,3 +90,25 @@ describe("format", () => {
     expect(bytes(20 * 1024 * 1024)).toBe("20 MB");
   });
 });
+
+describe("bridge versions", () => {
+  it("compares number by number", async () => {
+    const { compareVersions } = await import("../src/bridge-update");
+    expect(compareVersions("0.1.0", "0.1.0")).toBe(0);
+    expect(compareVersions("0.0.9", "0.1.0")).toBe(-1);
+    expect(compareVersions("0.10.0", "0.9.9")).toBe(1);
+  });
+});
+
+describe("confirmation dialogs", () => {
+  it("asks for the domain to publish, and a click to roll back or finalize", async () => {
+    const { confirmScript } = await import("../src/confirm-dialog");
+    const push = confirmScript({ action: "push", host: "example.com", summary: 'Files: 3 "quoted"' });
+    expect(push).toContain("default answer");
+    expect(push).toContain("REPLACES the live site example.com");
+    expect(push).toContain('\\"quoted\\"');
+    const rollback = confirmScript({ action: "rollback", host: "example.com", summary: "x" });
+    expect(rollback).toContain('buttons {"Cancel", "Roll back"}');
+    expect(rollback).toContain('default button "Cancel"');
+  });
+});
