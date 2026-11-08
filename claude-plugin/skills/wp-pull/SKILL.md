@@ -17,6 +17,10 @@ Run wpsync as `${CLAUDE_PLUGIN_ROOT}/bin/wpsync`, inside the site's folder (it h
 wpsync pull <homeUrl> --dir .
 ```
 
+**Wordfence first:** if `wpsync status --json` shows `"wordfence": "back-on"`, or the pull stops
+saying Wordfence switched Application Passwords off, follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("Before"), then pull.
+After the pull, follow its "When wpsync is done" part to have it switched back on.
+
 A pull only reads the live site. Locally it **replaces the database** with live's and brings
 files in line with live's, so local content changes made since the last pull are lost. If the
 developer has been making content in the local wp-admin, ask before pulling.

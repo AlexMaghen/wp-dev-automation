@@ -95,3 +95,25 @@ describe("plugin bundle", () => {
     expect(readFileSync(join(repo, "claude-plugin", "bin", "wpsync.mjs"), "utf8")).toBe(readFileSync(out, "utf8"));
   });
 });
+
+describe("Wordfence", () => {
+  it("gives steps with the direct link, to switch it off or back on", async () => {
+    const { wordfenceSteps, wordfenceOptionUrl } = await import("../src/doctor");
+    const off = wordfenceSteps("https://example.com", false);
+    expect(off).toContain(wordfenceOptionUrl("https://example.com"));
+    expect(off).toContain("Switch it off (unticked)");
+    expect(wordfenceSteps("https://example.com", true)).toContain("Switch it back on (ticked)");
+  });
+
+  it("notes in the site's project that the setting had to be switched off, once", async () => {
+    const { noteWordfence } = await import("../src/project");
+    const dir = join(tempDir(), "site");
+    init("https://example.com", { dir });
+    noteWordfence(dir, "https://example.com", new Date("2026-11-08T00:00:00Z"));
+    noteWordfence(dir, "https://example.com", new Date("2026-12-01T00:00:00Z"));
+    expect(JSON.parse(readFileSync(join(dir, ".wpsync.json"), "utf8")).wordfence).toEqual({ switchedOffAt: "2026-11-08T00:00:00.000Z" });
+    noteWordfence(dir, "https://other.example", new Date());
+    const other = join(tempDir(), "not-a-project");
+    expect(() => noteWordfence(other, "https://example.com")).not.toThrow();
+  });
+});

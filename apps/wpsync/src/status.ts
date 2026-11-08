@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { wordfenceSteps } from "./doctor";
 import { BRIDGE_PLUGIN_ROUTE, RestClient } from "./rest-client";
 import { projectAt } from "./project";
 import type { SecretStore } from "./secrets";
@@ -24,6 +25,15 @@ export interface Status {
   lastPull?: string;
   lastPush?: { at: string; finalized: boolean };
   ddevRunning?: boolean;
+  /**
+   * For sites whose Wordfence blocks Application Passwords (noted in .wpsync.json): where its
+   * "Disable WordPress application passwords" setting is now, checked on the live site.
+   * "switched-off": wpsync can work; remind the developer to switch it back on when done.
+   * "back-on": the site is protected again; it must be switched off before wpsync runs.
+   */
+  wordfence?: "switched-off" | "back-on";
+  /** Steps for the next switch: back on when it's off, off when it's back on. */
+  wordfenceSteps?: string;
   /** The next thing to do, in words. */
   next: string;
 }
@@ -60,11 +70,24 @@ export async function status(options: { dir?: string; allowHttp?: boolean }, sto
       base.keyWorks = false;
     }
   }
+  if (meta.wordfence) {
+    const site = await discoverSite(meta.homeUrl, { allowHttp: options.allowHttp }).catch(() => null);
+    base.wordfence = site && !site.applicationPasswords ? "back-on" : "switched-off";
+    base.wordfenceSteps = wordfenceSteps(site?.siteUrl ?? meta.siteUrl ?? meta.homeUrl, base.wordfence === "switched-off");
+  }
   if (existsSync(project.ddevConfigPath)) {
     const describe = spawnSync("ddev", ["describe", "-j"], { cwd: project.dir, encoding: "utf8" });
     base.ddevRunning = describe.status === 0 && /"status":\s*"running"/.test(describe.stdout ?? "");
   }
 
+  if (base.wordfence === "back-on" && connection) {
+    // Expected between work sessions: the key is refused until the setting is switched off.
+    base.phase = meta.setup !== "ready" ? "pull" : meta.lastPush && !meta.lastPush.finalized ? "publish-pending" : "work";
+    base.next =
+      "Wordfence's \"Disable WordPress application passwords\" is on, as it should be between work sessions. " +
+      "Local work needs nothing; switch it off again before the next pull or publish.";
+    return base;
+  }
   if (!connection || base.keyWorks === false) {
     base.phase = "connect";
     base.next = `Connect: wpsync connect ${meta.homeUrl} (a macOS dialog asks for the admin login).`;
@@ -76,7 +99,10 @@ export async function status(options: { dir?: string; allowHttp?: boolean }, sto
     base.next = "The last publish is waiting: check live, then wpsync finalize (keep it) or wpsync rollback (undo it).";
   } else {
     base.phase = "work";
-    base.next = "Ready to work on the local copy.";
+    base.next =
+      base.wordfence === "switched-off"
+        ? "Ready to work on the local copy. When you're done with pulls and publishes for now, switch Wordfence's \"Disable WordPress application passwords\" back on."
+        : "Ready to work on the local copy.";
   }
   return base;
 }

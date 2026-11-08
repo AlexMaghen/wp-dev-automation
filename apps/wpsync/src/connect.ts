@@ -5,6 +5,7 @@ import { InfoResponse, ROUTES } from "@wp-dev-automation/protocol";
 import { AdminSession } from "./admin-session";
 import { BRIDGE_ZIP_NAME, bridgeZip } from "./bridge-zip";
 import { ensureCurrentBridge } from "./bridge-update";
+import { hasWordfence, wordfenceSteps } from "./doctor";
 import type { ApplicationPasswordProvider } from "./confirm-dialog";
 import type { CredentialsProvider } from "./dialog";
 import { WpsyncError } from "./errors";
@@ -57,13 +58,7 @@ export async function connect(options: ConnectOptions, deps: ConnectDeps): Promi
 
   log(`Looking up ${options.url}…`);
   const site = await discoverSite(options.url, { allowHttp: options.allowHttp });
-  if (!site.applicationPasswords) {
-    throw new WpsyncError(
-      "application_passwords_unavailable",
-      `${site.homeUrl} doesn't offer Application Passwords, which wpsync uses to sign in.`,
-      "WordPress turns them off on sites without HTTPS, and security plugins can too. Wordfence does by default: Wordfence → Login Security → Settings, untick \"Disable WordPress application passwords\", save, and connect again.",
-    );
-  }
+  await requireApplicationPasswords(site);
   const key = siteKey(site.homeUrl);
   const previous = await deps.store.get(key);
   if (options.useApplicationPassword) return connectWithApplicationPassword(site, previous, options, deps);
@@ -109,6 +104,26 @@ export async function connect(options: ConnectOptions, deps: ConnectDeps): Promi
   } finally {
     await session.logout();
   }
+}
+
+/**
+ * wpsync signs in with an Application Password, so every command that talks to the site starts
+ * here. On a Wordfence site the error gives the exact switch to flip.
+ */
+export async function requireApplicationPasswords(site: Site): Promise<void> {
+  if (site.applicationPasswords) return;
+  if (await hasWordfence(site.homeUrl)) {
+    throw new WpsyncError(
+      "wordfence_application_passwords",
+      `${site.homeUrl} has Application Passwords switched off, most likely by Wordfence (it does that by default). wpsync needs them while it works on the site.`,
+      `Switch Wordfence's setting off:\n${wordfenceSteps(site.siteUrl, false)}\nThen run this again. Switch it back on when you're done; wpsync will remind you.`,
+    );
+  }
+  throw new WpsyncError(
+    "application_passwords_unavailable",
+    `${site.homeUrl} doesn't offer Application Passwords, which wpsync uses to sign in.`,
+    "WordPress turns them off on sites without HTTPS, and security plugins can too: look in the security plugin's settings for Application Passwords.",
+  );
 }
 
 function machineName(): string {

@@ -8,6 +8,7 @@ import { DDEV_MARIADB, DDEV_MYSQL, DDEV_PHP } from "./ddev-config";
 import { WpsyncError } from "./errors";
 import { listRemote } from "./file-sync";
 import { bytes } from "./format";
+import { http } from "./http";
 import { BRIDGE_PLUGIN_ROUTE, RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
 import { discoverSite, normalizeUrl, siteKey } from "./site";
@@ -29,6 +30,32 @@ export interface Check {
   needsPerson?: boolean;
   /** Not a blocker, just worth knowing. */
   warning?: boolean;
+  /** Why it failed, when wpsync can tell (the skills give step-by-step help for these). */
+  cause?: "wordfence-application-passwords";
+}
+
+/**
+ * Steps for Wordfence's "Disable WordPress application passwords" option, which is on by
+ * default. It sits on Wordfence's Firewall options page (Brute Force Protection section); this
+ * is the address Wordfence's own "Edit Wordfence Options" button uses, and it jumps to it.
+ */
+export function wordfenceSteps(siteUrl: string, turnOn: boolean): string {
+  return [
+    `1. Open ${wordfenceOptionUrl(siteUrl)} (sign in to wp-admin if it asks).`,
+    '2. The page jumps to "Disable WordPress application passwords", under Brute Force Protection.',
+    `3. ${turnOn ? "Switch it back on (ticked)" : "Switch it off (unticked)"}.`,
+    "4. Click Save Changes at the top of the page.",
+  ].join("\n");
+}
+
+export function wordfenceOptionUrl(siteUrl: string): string {
+  return `${siteUrl}/wp-admin/admin.php?page=WordfenceWAF&subpage=waf_options#wf-option-loginSec-disableApplicationPasswords-label`;
+}
+
+/** Wordfence is installed if its readme is reachable (it usually is, unless the host blocks it). */
+export async function hasWordfence(homeUrl: string): Promise<boolean> {
+  const readme = await http(`${homeUrl}/wp-content/plugins/wordfence/readme.txt`).catch(() => null);
+  return !!readme && readme.status === 200 && /Wordfence/i.test(readme.text.slice(0, 500));
 }
 
 function run(command: string, args: string[]): { ok: boolean; out: string } {
@@ -179,12 +206,17 @@ export async function checkSite(url: string, store: SecretStore, options: { allo
     return checks;
   }
   checks.push({ id: "wordpress", label: "WordPress site with its REST API", ok: true, detail: `${site.name} at ${site.homeUrl}` });
+  const wordfence = !site.applicationPasswords && (await hasWordfence(site.homeUrl));
   checks.push({
     id: "application-passwords",
     label: "Application Passwords",
     ok: site.applicationPasswords,
-    detail: site.applicationPasswords ? "available" : "turned off",
-    fix: "WordPress offers them only over HTTPS, and security plugins can turn them off. Wordfence does by default: in wp-admin go to Wordfence → Login Security → Settings and untick \"Disable WordPress application passwords\", then save.",
+    detail: site.applicationPasswords ? "available" : wordfence ? "turned off, most likely by Wordfence" : "turned off",
+    fix: wordfence
+      ? `Wordfence turns them off by default. While wpsync works on the site, switch that off:\n${wordfenceSteps(site.siteUrl, false)}\n(If that box is already unticked, another security plugin is doing it: look in its settings for Application Passwords.)`
+      : "WordPress offers them only over HTTPS, and security plugins can turn them off: look in the security plugin's settings for Application Passwords.",
+    needsPerson: true,
+    cause: wordfence ? "wordfence-application-passwords" : undefined,
   });
 
   const connection = await store.get(siteKey(site.homeUrl));
@@ -298,8 +330,9 @@ export function formatChecks(checks: Check[]): string {
     .map((check) => {
       const mark = check.warning ? "note" : check.ok ? "ok  " : "FIX ";
       const lines = [`${mark} ${check.label}: ${check.detail}`];
-      if (!check.ok && check.fix) lines.push(`       → ${check.fix}${check.needsPerson ? " (you need to do this yourself)" : ""}`);
-      else if (check.warning && check.fix) lines.push(`       ${check.fix}`);
+      const fix = check.fix?.replace(/\n/g, "\n         ");
+      if (!check.ok && fix) lines.push(`       → ${fix}${check.needsPerson ? "\n         (you need to do this yourself)" : ""}`);
+      else if (check.warning && fix) lines.push(`       ${fix}`);
       return lines.join("\n");
     })
     .join("\n");

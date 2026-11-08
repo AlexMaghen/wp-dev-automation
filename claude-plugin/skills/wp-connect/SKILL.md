@@ -22,6 +22,12 @@ revocable key (an Application Password named "wpsync <Mac> <date>", kept in the 
 Keychain), installs its bridge plugin (switched off between runs), and logs out. Never put a
 password in a command or a file.
 
+## When Wordfence blocks it
+
+If connect says Application Passwords are "switched off, most likely by Wordfence", follow
+`${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md`: the developer switches one setting off, you wait until it's saved, check with
+`wpsync doctor <site-url>`, then connect again.
+
 ## When the login is protected (two-factor, CAPTCHA, security plugins)
 
 wpsync says the login was blocked. Then:
@@ -40,7 +46,7 @@ wpsync says the login was blocked. Then:
 | --- | --- |
 | WordPress refused the login | Wrong username or password; run connect again. |
 | isn't an administrator | Use an administrator account. |
-| doesn't offer Application Passwords | The site isn't on HTTPS, or a security plugin turned them off. Wordfence does by default: Wordfence → Login Security → Settings, untick "Disable WordPress application passwords". |
+| doesn't offer Application Passwords | The site isn't on HTTPS, or a security plugin turned them off. Most often Wordfence: see `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md`. |
 | drops the Authorization header | A hosting setting: ask the host to pass the Authorization header to PHP. |
 | doesn't allow uploading plugins | The host forbids plugin installs; wpsync can't work there. |
 

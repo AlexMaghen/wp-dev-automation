@@ -17,6 +17,9 @@ Run wpsync as `${CLAUDE_PLUGIN_ROOT}/bin/wpsync`, inside the site's folder.
 `wp-config.php`, `.htaccess` and host-added files are kept. Edits people made on live since the
 last pull are lost.
 
+0. **Wordfence:** if `wpsync status --json` shows `"wordfence": "back-on"`, follow
+   `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("Before") now. It must stay off until the publish is finalized or rolled back;
+   then follow its "When wpsync is done" part to have it switched back on.
 1. **Commit first.** wpsync refuses to publish uncommitted code.
 2. **Dry run:** `wpsync push --dry-run`. Show the developer its summary: database size, files to
    upload and delete, plugins added, removed or updated, and **any live changes since the last

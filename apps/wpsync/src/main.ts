@@ -16,7 +16,9 @@ import { init, updateProjectRules } from "./local-commands";
 import { pull } from "./pull";
 import { describePlan, finalize, push, rollback } from "./push";
 import { macApplicationPasswordDialog, macConfirmDialog } from "./confirm-dialog";
+import { noteWordfence } from "./project";
 import { MacKeychain } from "./secrets";
+import { normalizeUrl } from "./site";
 
 const VERSION = "0.1.0";
 
@@ -230,6 +232,9 @@ async function runDoctor(args: Parsed): Promise<number> {
   const url = args.positional[0];
   if (!url && !args.flags.has("local")) throw new UsageError("doctor needs --local or a site address.");
   const checks = url ? await checkSite(url, new MacKeychain(), { allowHttp: args.flags.has("allow-http") }) : await checkLocal();
+  if (url && checks.some((c) => c.cause === "wordfence-application-passwords")) {
+    noteWordfence(stringFlag(args, "dir") ?? process.cwd(), normalizeUrl(url, args.flags.has("allow-http")));
+  }
   print(args, checks, `${formatChecks(checks)}\n\n${allOk(checks) ? "Nothing to fix." : "Fix the FIX lines above, then run this again."}`);
   return allOk(checks) ? 0 : 1;
 }
@@ -241,6 +246,8 @@ async function runStatus(args: Parsed): Promise<void> {
   if (result.localUrl) lines.push(`Local    ${result.localUrl}${result.ddevRunning ? " (running)" : ""}`);
   if (result.lastPull) lines.push(`Pulled   ${result.lastPull}`);
   if (result.lastPush) lines.push(`Pushed   ${result.lastPush.at}${result.lastPush.finalized ? "" : " (waiting for finalize or rollback)"}`);
+  if (result.wordfence === "switched-off") lines.push("Wordfence  \"Disable WordPress application passwords\" is off for wpsync: switch it back on when done");
+  if (result.wordfence === "back-on") lines.push("Wordfence  \"Disable WordPress application passwords\" is on (switch it off before pulling or publishing)");
   lines.push(`Next     ${result.next}`);
   print(args, result, lines.join("\n"));
 }
@@ -343,6 +350,13 @@ async function main(argv: string[]): Promise<number> {
       return 2;
     }
     if (error instanceof WpsyncError) {
+      if (error.code === "wordfence_application_passwords" && args.positional[0]) {
+        try {
+          noteWordfence(stringFlag(args, "dir") ?? process.cwd(), normalizeUrl(args.positional[0], args.flags.has("allow-http")));
+        } catch {
+          // Not in a project folder: nothing to note.
+        }
+      }
       console.error(`\n${error.message}${error.hint ? `\n${error.hint}` : ""}`);
       return 1;
     }

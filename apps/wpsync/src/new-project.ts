@@ -2,7 +2,7 @@ import { connect } from "./connect";
 import type { CredentialsProvider } from "./dialog";
 import { allOk, checkLocal, checkSite, type Check } from "./doctor";
 import { init } from "./local-commands";
-import { defaultProjectDir, projectAt } from "./project";
+import { defaultProjectDir, noteWordfence, projectAt } from "./project";
 import { pull, type PullResult } from "./pull";
 import type { SecretStore } from "./secrets";
 import { normalizeUrl } from "./site";
@@ -47,6 +47,7 @@ export async function newProject(
 
   log("Checking the site…");
   let site = await checkSite(homeUrl, deps.store, options);
+  if (site.some((c) => c.cause === "wordfence-application-passwords")) noteWordfence(project.dir, homeUrl);
   if (!allOk(site)) return { stoppedAt: "site-checks", dir: project.dir, homeUrl, checks: [...local, ...site] };
 
   const now = await status({ dir: project.dir, allowHttp: options.allowHttp }, deps.store);

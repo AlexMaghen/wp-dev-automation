@@ -8,6 +8,7 @@ import { fetchInto, findCodeDrift, listLocal, listRemote, planSync, removeLocal 
 import { bytes, count } from "./format";
 import { defaultProjectDir, projectAt, requireDocker, type Project, type ProjectFile } from "./project";
 import { ensureCurrentBridge } from "./bridge-update";
+import { requireApplicationPasswords } from "./connect";
 import { RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
 import { writeClaudeMd } from "./site-files";
@@ -58,6 +59,7 @@ export async function pull(options: PullOptions, deps: PullDeps): Promise<PullRe
   requireDocker();
 
   const site = await discoverSite(options.url, { allowHttp: options.allowHttp });
+  await requireApplicationPasswords(site);
   const connection = await deps.store.get(siteKey(site.homeUrl));
   if (!connection) {
     throw new WpsyncError("not_connected", `wpsync isn't connected to ${site.homeUrl} yet.`, `Run: wpsync connect ${site.homeUrl}`);

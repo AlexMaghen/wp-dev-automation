@@ -22,6 +22,7 @@ import { projectAt, requireDocker, type Project, type ProjectFile } from "./proj
 import { exportDatabase, pieces, planPush, scratchDir, toLiveReplacements, writeFilesArchive, type PushFilePlan } from "./push-local";
 import type { ConfirmProvider } from "./confirm-dialog";
 import { ensureCurrentBridge } from "./bridge-update";
+import { requireApplicationPasswords } from "./connect";
 import { RestClient } from "./rest-client";
 import type { SecretStore } from "./secrets";
 import { discoverSite, siteKey, type Site } from "./site";
@@ -106,6 +107,7 @@ async function open(options: { dir?: string; allowHttp?: boolean; log?: (line: s
     throw new WpsyncError("not_pulled", "This project hasn't been pulled yet, so there's nothing to publish.", `Run: wpsync pull ${meta.homeUrl}`);
   }
   const site = await discoverSite(meta.homeUrl, { allowHttp: options.allowHttp });
+  await requireApplicationPasswords(site);
   const connection = await store.get(siteKey(site.homeUrl));
   if (!connection) {
     throw new WpsyncError("not_connected", `wpsync isn't connected to ${site.homeUrl}.`, `Run: wpsync connect ${site.homeUrl}`);

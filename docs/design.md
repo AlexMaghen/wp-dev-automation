@@ -65,7 +65,13 @@ reconnect.
   Application Password in their own profile and pastes it into the wpsync dialog. The bridge
   install then needs one login session; if even that is impossible, wpsync stops and says why.
 - **Application Passwords disabled** (some security plugins do this): report which setting to
-  change.
+  change. **Wordfence does it by default** (its "Disable WordPress application passwords"
+  option, on its Firewall options page; found on the first real-host test, 2026-11-08). wpsync
+  spots Wordfence from its public readme, prints step-by-step instructions with a direct link,
+  and notes it in `.wpsync.json`. The developer switches it off while wpsync works on the site
+  and back on afterwards; `wpsync status` checks which way it is on live, and the skills
+  (`claude-plugin/skills/wp-dev/wordfence.md`) wait for each switch and remind them to switch
+  it back on.
 - **Authorization header stripped** by the host (some Apache/CGI setups): detected on the first
   REST call. Report it; version 1 does not work around it.
 - **`DISALLOW_FILE_MODS` or uploads blocked:** stop. The site needs hosting access.

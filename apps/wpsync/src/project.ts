@@ -34,6 +34,15 @@ export const ProjectFile = z.object({
       theme: z.string().optional(),
     })
     .optional(),
+  /**
+   * Set when Wordfence's "Disable WordPress application passwords" had to be switched off for
+   * wpsync: the developer is reminded to switch it back on, and wpsync status checks they did.
+   */
+  wordfence: z
+    .object({
+      switchedOffAt: z.string(),
+    })
+    .optional(),
   lastPush: z
     .object({
       at: z.string(),
@@ -151,6 +160,18 @@ export class Project {
       // Mutagen isn't in use: the container sees the files directly.
     }
   }
+}
+
+/**
+ * Notes, in the project for this site (if the folder is one), that Wordfence's setting had to
+ * be switched off, so the developer gets reminded to switch it back on.
+ */
+export function noteWordfence(dir: string, homeUrl: string, now: Date = new Date()): void {
+  const project = projectAt(dir);
+  if (!project.exists()) return;
+  const meta = project.read();
+  if (new URL(meta.homeUrl).host !== new URL(homeUrl).host || meta.wordfence) return;
+  project.write({ ...meta, wordfence: { switchedOffAt: now.toISOString() } });
 }
 
 function git(dir: string, ...args: string[]): string {

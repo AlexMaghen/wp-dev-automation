@@ -29,6 +29,9 @@ Run `wpsync status --json` in the current folder and go by its `phase`:
 | `no-project` | Phase 1 from step 1 (the start gate) |
 | `start-gate`, `connect`, `pull` | Phase 1 from step 2 (it skips what's done) |
 | `work` | Phase 2: the `wp-work` skill for changes, `wp-pull` to refresh, `wp-publish` to go live |
+
+Whatever the phase: if `status` has a `wordfence` field, this site's Wordfence must be switched
+off while wpsync works on it and back on afterwards. Follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md`.
 | `publish-pending` | The last publish is waiting for finalize or rollback: see `wp-publish` |
 
 ## Phase 1: set up the local copy
@@ -78,6 +81,10 @@ header can only be tested with a real key, so that's checked once wpsync connect
 explain each FIX before going on; most are hosting or security-plugin settings the developer has
 to ask someone about.
 
+**Wordfence:** if it reports Application Passwords "turned off, most likely by Wordfence", follow
+`${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("Before"): the developer switches one setting off in wp-admin, and you wait until
+they say it's saved and doctor confirms it. You'll remind them to switch it back on in step 8.
+
 ### 4. Connect
 
 The `wp-connect` skill. Afterwards run `wpsync doctor <site-url>` again: it now also checks the
@@ -118,3 +125,7 @@ Read the site's `CLAUDE.md` now, so its rules apply from here on, then say:
 > {local domain}. How shall we get started?
 
 with {local domain} from `.wpsync.json`'s `localUrl`.
+
+**Then, if this site uses Wordfence** (`wpsync status --json` shows `"wordfence": "switched-off"`):
+setup no longer needs the live site, so follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("When wpsync is done") to have the
+developer switch Wordfence's protection back on, wait, and confirm with `wpsync status`.
