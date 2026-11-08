@@ -1,6 +1,14 @@
 import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
-import { applicationPasswordNames, wp, wpOk } from "@wp-dev-automation/test-harness";
-import { describe, expect, inject, it } from "vitest";
+import {
+  BASE_URL,
+  applicationPasswordNames,
+  clearApplicationPasswords,
+  freshLoginPassword,
+  removeBridge,
+  wp,
+  wpOk,
+} from "@wp-dev-automation/test-harness";
+import { beforeAll, describe, expect, it } from "vitest";
 import { connect } from "../../src/connect";
 import type { CredentialsProvider } from "../../src/dialog";
 import { WpsyncError } from "../../src/errors";
@@ -8,7 +16,9 @@ import { RestClient } from "../../src/rest-client";
 import { MemoryStore } from "../../src/secrets";
 import { discoverSite, siteKey } from "../../src/site";
 
-const harness = () => inject("connectHarness");
+/** Throwaway login passwords, set fresh for this file. */
+const passwords = { admin: "", editor: "" };
+const harness = () => ({ baseUrl: BASE_URL, adminPassword: passwords.admin, editorPassword: passwords.editor });
 
 /** Stands in for the macOS dialog with the harness's throwaway login. */
 const typed = (username: string, password: string): CredentialsProvider => async () => ({ username, password });
@@ -27,6 +37,15 @@ function sessionCount(user: string): number {
 }
 
 describe("wpsync connect", () => {
+  // Start from a site wpsync has never touched: no bridge, no Application Passwords.
+  beforeAll(() => {
+    removeBridge();
+    clearApplicationPasswords("admin");
+    clearApplicationPasswords("editor");
+    passwords.admin = freshLoginPassword("admin");
+    passwords.editor = freshLoginPassword("editor");
+  });
+
   const store = new MemoryStore();
   const options = () => ({ url: harness().baseUrl, allowHttp: true });
   const deps = (credentials: CredentialsProvider) => ({ credentials, store, machineName: "contract-test" });

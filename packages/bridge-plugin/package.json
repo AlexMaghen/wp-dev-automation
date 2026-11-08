@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "lint": "for f in $(find wpsync-bridge -name '*.php'); do php -l \"$f\" >/dev/null || exit 1; done",
+    "test": "php test/php/paths-test.php && php test/php/constants-test.php",
     "typecheck": "tsc -p tsconfig.json",
     "test:contract": "vitest run --config vitest.contract.config.ts"
   },

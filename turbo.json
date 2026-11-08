@@ -7,8 +7,9 @@
       ],
       "outputs": [
         "json-schema/**",
-        "../bridge-plugin/wpsync-bridge/includes/protocol.php",
-        "src/generated/**"
+        "test-vectors/**",
+        "src/generated/**",
+        "../bridge-plugin/wpsync-bridge/includes/protocol.php"
       ]
     },
     "typecheck": {

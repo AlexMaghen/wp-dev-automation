@@ -7,6 +7,8 @@ import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
 import { connect } from "./connect";
 import { macLoginDialog } from "./dialog";
 import { WpsyncError } from "./errors";
+import { bytes, count } from "./format";
+import { pull } from "./pull";
 import { MacKeychain } from "./secrets";
 
 const VERSION = "0.1.0";
@@ -18,6 +20,12 @@ Usage:
       Sign in once (a macOS dialog asks for the password), create wpsync's own
       Application Password, and install the wpsync bridge, switched off.
 
+  wpsync pull <site-url> [--dir <folder>] [--name <ddev-name>] [--overwrite-code]
+      Copy the live site into a local DDEV project (default folder:
+      ~/AxDevProj/wp-sites/<host>). The first pull creates the project; later
+      pulls download only what changed. Code you track in git is never
+      overwritten unless you add --overwrite-code. The live site is only read.
+
   wpsync --version
   wpsync help
 
@@ -28,6 +36,14 @@ interface Parsed {
   command: string | undefined;
   positional: string[];
   flags: Map<string, string | true>;
+}
+
+/** Flags that take a value (--user admin); every other flag is a switch. */
+const VALUE_FLAGS = new Set(["user", "dir", "name"]);
+
+function stringFlag(args: Parsed, name: string): string | undefined {
+  const value = args.flags.get(name);
+  return typeof value === "string" ? value : undefined;
 }
 
 function parse(argv: string[]): Parsed {
@@ -42,7 +58,7 @@ function parse(argv: string[]): Parsed {
     const [name, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags.set(name, inline);
-    else if (name === "user" && next && !next.startsWith("--")) flags.set(name, argv[++i]!);
+    else if (VALUE_FLAGS.has(name) && next && !next.startsWith("--")) flags.set(name, argv[++i]!);
     else flags.set(name, true);
   }
   return { command: positional.shift(), positional, flags };
@@ -80,6 +96,31 @@ Connected to ${info.site.name} (${result.site.homeUrl})
   }
 }
 
+async function runPull(args: Parsed): Promise<void> {
+  const url = args.positional[0];
+  if (!url) throw new UsageError("pull needs the site's address, e.g. wpsync pull https://example.com");
+
+  const result = await pull(
+    {
+      url,
+      dir: stringFlag(args, "dir"),
+      name: stringFlag(args, "name"),
+      allowHttp: args.flags.has("allow-http"),
+      overwriteCode: args.flags.has("overwrite-code"),
+      log: (line) => console.log(line),
+    },
+    { store: new MacKeychain() },
+  );
+
+  console.log(`
+${result.firstPull ? "Pulled" : "Refreshed"} the local copy
+  Folder     ${result.projectDir}
+  Local URL  ${result.localUrl}
+  Database   ${count(result.tables)} tables, ${count(result.rows)} rows
+  Files      ${count(result.filesFetched)} downloaded (${bytes(result.bytesFetched)}), ${count(result.filesDeleted)} deleted, ${count(result.filesUnchanged)} unchanged`);
+  for (const warning of result.warnings) console.log(`\nNote: ${warning}`);
+}
+
 class UsageError extends Error {}
 
 async function main(argv: string[]): Promise<number> {
@@ -88,6 +129,9 @@ async function main(argv: string[]): Promise<number> {
     switch (args.command) {
       case "connect":
         await runConnect(args);
+        return 0;
+      case "pull":
+        await runPull(args);
         return 0;
       case undefined:
       case "help":

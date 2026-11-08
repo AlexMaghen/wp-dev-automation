@@ -20,4 +20,6 @@ packages/test-harness/site/*
 !packages/test-harness/site/.ddev/
 packages/test-harness/site/.ddev/*
 !packages/test-harness/site/.ddev/config.yaml
+# Where the pull contract tests put the site they pull
+packages/test-harness/pulled/
 *.tsbuildinfo

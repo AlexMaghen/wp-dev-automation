@@ -1,5 +1,5 @@
 import { hostname } from "node:os";
-import { BRIDGE_VERSION, InfoResponse, REST_NAMESPACE, ROUTES } from "@wp-dev-automation/protocol";
+import { BRIDGE_VERSION, InfoResponse, ROUTES } from "@wp-dev-automation/protocol";
 import { AdminSession } from "./admin-session";
 import { BRIDGE_ZIP_NAME, bridgeZip } from "./bridge-zip";
 import type { CredentialsProvider } from "./dialog";
@@ -139,16 +139,6 @@ async function ensureBridge(rest: RestClient, session: AdminSession, log: (line:
 }
 
 /** Switches the bridge on, reads info, and switches it off again whatever happens. */
-async function checkBridge(rest: RestClient): Promise<InfoResponse> {
-  await rest.setBridgeActive(true);
-  try {
-    const result = await rest.get(`/${REST_NAMESPACE}${ROUTES.info}`);
-    const info = InfoResponse.safeParse(result.body);
-    if (result.status !== 200 || !info.success) {
-      throw new WpsyncError("bridge_check_failed", `The bridge didn't answer as expected (HTTP ${result.status}${result.errorCode ? `, ${result.errorCode}` : ""}).`);
-    }
-    return info.data;
-  } finally {
-    await rest.setBridgeActive(false);
-  }
+function checkBridge(rest: RestClient): Promise<InfoResponse> {
+  return rest.withBridge(() => rest.bridge(InfoResponse, ROUTES.info));
 }

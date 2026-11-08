@@ -3,8 +3,8 @@
 Pull a live WordPress site into local DDEV, work on it, publish it back to replace live,
 with only a WordPress admin login (no hosting access, no paid migration plugin).
 
-**Status: design in `docs/design.md` (read it first). Build steps 1–2 of its section 13 are done
-(2026-11-08): protocol + bridge `info`, and `wpsync connect`. Next: step 3, pull.**
+**Status: design in `docs/design.md` (read it first). Build steps 1–3 of its section 13 are done
+(2026-11-08): protocol + bridge `info`, `wpsync connect`, and `wpsync pull`. Next: step 4.**
 Not built yet from step 2: the fallback for sites whose login is blocked (two-factor, CAPTCHA),
 where the developer pastes an Application Password they made themselves.
 
@@ -21,6 +21,14 @@ where the developer pastes an Application Password they made themselves.
   wpsync build` compiles standalone binaries into `apps/wpsync/dist/`.
 - Claude never handles a site password: `wpsync connect` takes it through a macOS dialog the
   person types into. Contract tests pass harness-generated throwaway passwords in code instead.
+- `pnpm --filter @wp-dev-automation/bridge-plugin test` checks the PHP without DDEV: the path
+  rules against `packages/protocol/test-vectors/paths.json`, and that every `WPSYNC_*` constant
+  used is defined (a missing one only fails at runtime, and takes the site's REST API down
+  while the bridge is on).
+- Each contract-test file sets up the harness state it needs in its own `beforeAll`; vitest runs
+  files slowest first, so never rely on another file having run.
+- DDEV here uses Mutagen: files written on the Mac reach the container only after
+  `ddev mutagen sync` (`Project.syncFiles()` / `syncFiles()` in the harness).
 - The bridge targets PHP 7.4+: no PHP 8-only syntax (match, union types, nullsafe, named args).
 
 Planned layout (Turborepo, per the owner's global rules):

@@ -62,6 +62,9 @@ export interface HttpResponse {
   status: number;
   url: string;
   headers: Headers;
+  /** The body as raw bytes (for file downloads) … */
+  bytes: Buffer;
+  /** … and decoded as UTF-8. */
   text: string;
 }
 
@@ -99,7 +102,8 @@ export async function http(url: string, request: HttpRequest = {}): Promise<Http
       current = new URL(location, current).toString();
       continue;
     }
-    return { status: response.status, url: current, headers: response.headers, text: await response.text() };
+    const bytes = Buffer.from(await response.arrayBuffer());
+    return { status: response.status, url: current, headers: response.headers, bytes, text: bytes.toString("utf8") };
   }
 }
 

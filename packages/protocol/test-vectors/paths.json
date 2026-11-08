@@ -1,0 +1,122 @@
+{
+  "excluded": [
+    {
+      "path": "wp-config.php",
+      "excluded": true
+    },
+    {
+      "path": "wp-config-sample.php",
+      "excluded": false
+    },
+    {
+      "path": "wp-content/uploads/wpsync-1a2b/db.sql",
+      "excluded": true
+    },
+    {
+      "path": "wp-content/uploads/wpsync",
+      "excluded": false
+    },
+    {
+      "path": "wp-content/uploads/2026/11/photo.jpg",
+      "excluded": false
+    },
+    {
+      "path": "wp-content/plugins/wpsync-bridge/wpsync-bridge.php",
+      "excluded": true
+    },
+    {
+      "path": "wp-content/plugins/wpsync-bridge-other/x.php",
+      "excluded": false
+    },
+    {
+      "path": "wp-content/cache/page.html",
+      "excluded": true
+    },
+    {
+      "path": "wp-content/cachex/page.html",
+      "excluded": false
+    },
+    {
+      "path": ".git/HEAD",
+      "excluded": true
+    },
+    {
+      "path": "sub/.git/HEAD",
+      "excluded": false
+    },
+    {
+      "path": "index.php",
+      "excluded": false
+    }
+  ],
+  "order": [
+    {
+      "a": "a/z",
+      "b": "a-b",
+      "cmp": -1
+    },
+    {
+      "a": "a",
+      "b": "a/b",
+      "cmp": -1
+    },
+    {
+      "a": "B",
+      "b": "a",
+      "cmp": -1
+    },
+    {
+      "a": "wp-admin/x.php",
+      "b": "wp-admin.php",
+      "cmp": -1
+    },
+    {
+      "a": "é",
+      "b": "z",
+      "cmp": 1
+    },
+    {
+      "a": "same/path",
+      "b": "same/path",
+      "cmp": 0
+    }
+  ],
+  "safe": [
+    {
+      "path": "a/b.txt",
+      "safe": true
+    },
+    {
+      "path": "/etc/passwd",
+      "safe": false
+    },
+    {
+      "path": "../x",
+      "safe": false
+    },
+    {
+      "path": "a/../b",
+      "safe": false
+    },
+    {
+      "path": "a//b",
+      "safe": false
+    },
+    {
+      "path": "a/./b",
+      "safe": false
+    },
+    {
+      "path": "",
+      "safe": false
+    },
+    {
+      "path": "a\\b",
+      "safe": false
+    },
+    {
+      "path": "wp-content/uploads/ü ñ.txt",
+      "safe": true
+    }
+  ]
+}

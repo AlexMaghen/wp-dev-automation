@@ -8,8 +8,8 @@ export default defineConfig({
   test: {
     include: ["test/contract/**/*.test.ts"],
     globalSetup: ["test/contract/global-setup.ts"],
-    testTimeout: 120_000,
-    hookTimeout: 120_000,
+    testTimeout: 600_000,
+    hookTimeout: 300_000,
     fileParallelism: false,
   },
 });
