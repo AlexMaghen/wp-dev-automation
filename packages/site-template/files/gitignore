@@ -11,6 +11,8 @@ wp/wp-content/plugins/*
 
 # Database dumps and pull backups: they hold users' emails and password hashes.
 backups/
+# wpsync's scratch space while publishing
+.wpsync-tmp/
 
 # DDEV: keep config.yaml, ignore machine-local state
 .ddev/*

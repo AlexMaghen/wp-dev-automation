@@ -12,7 +12,10 @@ export interface RestResult {
 }
 
 interface CallOptions {
+  /** Sent as JSON. */
   body?: unknown;
+  /** Sent as is, as application/octet-stream (instead of body). */
+  bytes?: Uint8Array;
   query?: Record<string, string>;
 }
 
@@ -35,9 +38,15 @@ export class RestClient {
       Accept: accept,
       Authorization: `Basic ${Buffer.from(`${this.username}:${this.applicationPassword}`).toString("base64")}`,
     };
-    if (options.body !== undefined) headers["Content-Type"] = "application/json";
+    let body: string | Uint8Array | undefined;
+    if (options.bytes) {
+      headers["Content-Type"] = "application/octet-stream";
+      body = options.bytes;
+    } else if (options.body !== undefined) {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(options.body);
+    }
     const url = this.site.restUrl(route, options.query);
-    const body = options.body === undefined ? undefined : JSON.stringify(options.body);
 
     for (let attempt = 1; ; attempt++) {
       try {

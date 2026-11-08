@@ -113,7 +113,7 @@ describe("wpsync pull", () => {
     const claudeMd = readFileSync(join(PULLED_DIR, "CLAUDE.md"), "utf8");
     expect(claudeMd).toContain(`**Local copy:** ${LOCAL_URL}`);
     expect(claudeMd).toContain("Sample Plugin 1.0");
-    expect(claudeMd).toContain("## Keep it a WordPress site");
+    expect(claudeMd).toContain("## WordPress editing rules");
 
     // Addresses moved to the local copy, including inside serialized and JSON values.
     // Read the stored value: WP_HOME, which DDEV sets from the request's scheme, would hide it.

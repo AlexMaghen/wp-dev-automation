@@ -1,5 +1,5 @@
 ---
-name: pull
+name: wp-pull
 description: Refresh a local wpsync copy of a WordPress site from the live site. Use when the developer asks to pull, refresh, sync from live, or get the latest content, and before starting new work on a site that hasn't been pulled recently.
 ---
 

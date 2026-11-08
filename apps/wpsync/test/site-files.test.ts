@@ -22,7 +22,8 @@ afterEach(() => {
 describe("rules", () => {
   it("carries every rules file, without their maintainer comments", () => {
     const text = rulesText();
-    expect(text).toContain("## Keep it a WordPress site");
+    expect(text).toContain("## WordPress editing rules");
+    expect(text.indexOf("## WordPress editing rules")).toBeLessThan(text.indexOf("## A change is done when"));
     expect(text).toContain("## Safety rules");
     expect(text).toContain("## A change is done when");
     expect(text).not.toContain("PURPOSE:");
@@ -34,7 +35,8 @@ describe("CLAUDE.md", () => {
     const text = renderClaudeMd("Example", { status: "pending", homeUrl: "https://example.com" });
     expect(text).toContain("# Example: local WordPress copy");
     expect(text).toContain("**Live site:** https://example.com");
-    expect(text).toContain("## Keep it a WordPress site");
+    expect(text).toContain("## WordPress editing rules");
+    expect(text.indexOf("## WordPress editing rules")).toBeLessThan(text.indexOf("## A change is done when"));
     expect(text).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 

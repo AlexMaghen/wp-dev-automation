@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "stageId": {
+      "type": "string"
+    },
+    "step": {
+      "type": "string",
+      "enum": [
+        "assemble",
+        "import",
+        "carry",
+        "maintenance",
+        "files",
+        "swap",
+        "cleanup",
+        "applied",
+        "rollback-maintenance",
+        "rollback-files",
+        "rollback-swap",
+        "rolled-back",
+        "finalize",
+        "finalized",
+        "failed"
+      ]
+    },
+    "done": {
+      "type": "boolean"
+    },
+    "progress": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "done": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "done",
+            "total"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "stageId",
+    "step",
+    "done",
+    "progress",
+    "skipped",
+    "error"
+  ],
+  "additionalProperties": false
+}

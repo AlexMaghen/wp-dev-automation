@@ -2,7 +2,7 @@
   PURPOSE: Instructions to Claude about what it must never do, or never do without asking,
   while working on a wpsync site project.
   USED BY: copied into each site project's CLAUDE.md with the other rules (see
-  wordpress-native.md); the "publish" skill repeats the publishing part.
+  1-wordpress-editing.md); the "publish" skill repeats the publishing part.
   EDIT HERE, not in a site's CLAUDE.md.
 -->
 ## Safety rules

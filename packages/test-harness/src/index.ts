@@ -18,6 +18,20 @@ const PLUGIN_TARGET = join(SITE_DIR, "wp", "wp-content", "plugins", "wpsync-brid
 /** Where the pull contract tests put the local copy they make (a second DDEV project). */
 export const PULLED_DIR = join(SITE_DIR, "..", "pulled", "site");
 export const PULLED_DDEV_NAME = "wpsync-pulltest";
+/** The local copy the push contract tests edit and publish back to the harness. */
+export const PUSHED_DIR = join(SITE_DIR, "..", "pulled", "push-site");
+export const PUSHED_DDEV_NAME = "wpsync-pushtest";
+
+/** Deletes a DDEV project and its folder, if they exist. */
+export function deleteProject(dir: string): void {
+  if (!existsSync(dir)) return;
+  try {
+    ddevIn(dir, "delete", "-Oy");
+  } catch {
+    // Never started.
+  }
+  rmSync(dir, { recursive: true, force: true });
+}
 
 /** Plain HTTP on purpose: see the comment in site/.ddev/config.yaml. */
 export const BASE_URL = "http://wpsync-harness.ddev.site";

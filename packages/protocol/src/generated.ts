@@ -5,6 +5,7 @@ import { ErrorResponse } from "./errors";
 import { FILE_MTIME_HEADER, FILE_SIZE_HEADER, FilesListResponse } from "./files";
 import { InfoResponse } from "./info";
 import { comparePaths, isExcluded, isSafeRelativePath } from "./paths";
+import { ChangesResponse, StageProgress } from "./push";
 
 /** Path of the generated PHP constants file, relative to packages/protocol. */
 export const PHP_CONSTANTS_PATH = "../bridge-plugin/wpsync-bridge/includes/protocol.php";
@@ -33,6 +34,10 @@ function phpConstants(): string {
     `const WPSYNC_PLUGIN_FILE = ${phpString(C.PLUGIN_FILE)};`,
     `const WPSYNC_DEADLINE_SECONDS = ${C.DEADLINE_SECONDS};`,
     `const WPSYNC_OPTION_DEADLINE = ${phpString(C.OPTION_DEADLINE)};`,
+    `const WPSYNC_OPTION_MAINTENANCE = ${phpString(C.OPTION_MAINTENANCE)};`,
+    `const WPSYNC_OPTION_STAGE = ${phpString(C.OPTION_STAGE)};`,
+    `const WPSYNC_MAINTENANCE_SECONDS = ${C.MAINTENANCE_SECONDS};`,
+    `const WPSYNC_PUSH_CHUNK_BYTES = ${C.PUSH_CHUNK_BYTES};`,
     "",
     `const WPSYNC_DB_CHUNK_BYTES = ${C.DB_CHUNK_BYTES};`,
     `const WPSYNC_DB_ROWS_LIMIT = ${C.DB_ROWS_LIMIT};`,
@@ -45,6 +50,10 @@ function phpConstants(): string {
     "",
     "const WPSYNC_PULL_EXCLUDES = array(",
     ...C.PULL_EXCLUDES.map((pattern) => `\t${phpString(pattern)},`),
+    ");",
+    "",
+    "const WPSYNC_PUSH_PROTECTED = array(",
+    ...C.PUSH_PROTECTED.map((pattern) => `\t${phpString(pattern)},`),
     ");",
     "",
   ];
@@ -106,6 +115,8 @@ export function buildGenerated(): Record<string, string> {
     "json-schema/db-tables.schema.json": jsonSchema(DbTablesResponse),
     "json-schema/db-rows.schema.json": jsonSchema(DbRowsResponse),
     "json-schema/files-list.schema.json": jsonSchema(FilesListResponse),
+    "json-schema/stage-progress.schema.json": jsonSchema(StageProgress),
+    "json-schema/changes.schema.json": jsonSchema(ChangesResponse),
     "test-vectors/paths.json": pathVectors(),
   };
 }

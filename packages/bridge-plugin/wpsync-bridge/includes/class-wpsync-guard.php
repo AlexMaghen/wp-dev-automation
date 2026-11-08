@@ -25,6 +25,11 @@ class Wpsync_Guard {
 		delete_option( WPSYNC_OPTION_DEADLINE );
 	}
 
+	/** Pushes back the deadline while a long push is still working. */
+	public static function extend() {
+		update_option( WPSYNC_OPTION_DEADLINE, time() + WPSYNC_DEADLINE_SECONDS, false );
+	}
+
 	/** Unix time the bridge stops working, or 0 if none is set. */
 	public static function deadline() {
 		return (int) get_option( WPSYNC_OPTION_DEADLINE, 0 );

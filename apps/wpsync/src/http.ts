@@ -52,7 +52,7 @@ function isExpired(attributes: string[]): boolean {
 export interface HttpRequest {
   method?: string;
   headers?: Record<string, string>;
-  body?: string | FormData;
+  body?: string | FormData | Uint8Array;
   jar?: CookieJar;
   /** Follow redirects (GET only), carrying cookies along. Default: true for GET. */
   follow?: boolean;
@@ -87,7 +87,7 @@ export async function http(url: string, request: HttpRequest = {}): Promise<Http
       response = await fetch(current, {
         method: hop === 0 ? method : "GET",
         headers,
-        body: hop === 0 ? request.body : undefined,
+        body: hop === 0 ? (request.body as RequestInit["body"]) : undefined,
         redirect: "manual",
       });
     } catch (error) {

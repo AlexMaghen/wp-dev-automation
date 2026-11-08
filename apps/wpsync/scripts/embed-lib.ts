@@ -13,6 +13,10 @@ const SOURCES: Record<string, { dir: string; doc: string }> = {
     dir: join(REPO, "packages", "bridge-plugin", "wpsync-bridge"),
     doc: "The bridge plugin, keyed by path inside its folder (zipped and uploaded by connect).",
   },
+  LOCAL_BRIDGE_FILES: {
+    dir: join(REPO, "packages", "bridge-plugin", "local"),
+    doc: "Scripts run inside the local DDEV site with wp eval-file (the push exporter).",
+  },
   SITE_TEMPLATE_FILES: {
     dir: join(REPO, "packages", "site-template", "files"),
     doc: "Files every site project starts with (packages/site-template/files).",

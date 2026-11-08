@@ -129,51 +129,71 @@ a cursor to continue. Transfers are gzip-compressed binary with a SHA-256 checks
 
 Before anything changes on live:
 
-1. Refuse if git has uncommitted changes.
-2. Show what will happen: database size, number of files changed and deleted, plugins added or
-   removed compared with live. **`--dry-run` stops here.** Otherwise the developer types the live
-   domain to confirm, in a native macOS dialog, not the terminal (section 14.6).
-3. **Back up live locally:** a full pull into `backups/live-before-push-<time>/`.
+1. Refuse if git-tracked code under `wp/` has uncommitted changes, or if the last push is still
+   waiting for finalize or rollback.
+2. Re-check (section 14.6): the saved key still signs in, and live can write its own files.
+3. Show what will happen: database tables and size, files to upload (only new or changed ones)
+   and to delete, plugins added, removed or updated, theme change, and **what people changed on
+   live since it last matched the local copy** (the later of the last pull and the last push).
+   **`--dry-run` stops here.** Otherwise the developer types the live domain into a native macOS
+   dialog, not the terminal (section 14.6): when Claude runs wpsync, a terminal prompt or a flag
+   is no safeguard. Cancelling, or typing anything else, changes nothing.
+4. **Back up locally** into `backups/push-<time>/`: live's database, and live's copy of every
+   file this push will overwrite or delete.
 
 Then:
 
-4. **Prepare locally:** `ddev wp search-replace <local URL> <live URL> --all-tables --precise
-   --export=<file>` writes a live-ready dump without touching the local database. Pack the
-   changed files into a tar archive.
-5. **Upload** both in chunks to a staging area (`stage/begin`, `stage/chunk`).
-6. **Apply on live** (`stage/apply`, resumable steps):
-   1. Verify every checksum.
-   2. Turn on maintenance mode (a `.maintenance` file).
-   3. Import the dump into **new tables under a temporary prefix**, a batch of statements per
-      step. Live tables are untouched so far.
-   4. Carry over from live into the new tables: the bridge's own active state (so it survives the
-      swap) and the connecting user's Application Passwords (so wpsync keeps access).
-   5. Move the WordPress files being replaced into a saved-state folder (a rename on the same disk,
-      so fast), then unpack the new ones.
-   6. **Swap in one statement:** a single `RENAME TABLE` moves the live tables to a saved prefix
-      and the new tables to the real prefix.
-   7. Turn off maintenance mode.
-7. **Verify:** home page and three more pages return HTTP 200 with no PHP errors; `info` reports
-   the expected URLs and versions. If not, roll back automatically and report.
-8. Deactivate the bridge. The saved state stays on the server until `wpsync finalize`, so
-   `wpsync rollback` remains a one-command undo.
+5. **Open a stage** (`stage/begin`): the bridge checks free disk space (about twice the upload)
+   and returns a stage id, a temporary table prefix (`wpsync_n_<id>_`) and the chunk size the
+   host's request limit allows.
+6. **Prepare locally**, leaving the local copy as it was: take a DDEV snapshot, switch the local
+   addresses to live's with WP-CLI's serialization-safe search-replace, export every table under
+   the stage's prefix with the bridge's own SQL writer (run with `ddev wp eval-file`), and
+   restore the snapshot. Pack the files to upload, plus a delete entry for each file to remove,
+   into one archive.
+7. **Upload** both in gzip-compressed chunks, each with a SHA-256 checksum (`stage/chunk`).
+   Compression also keeps PHP and SQL text from tripping web firewalls.
+8. **Apply on live** (`stage/apply`, resumable steps of at most ~15 seconds):
+   1. **assemble:** un-gzip the chunks into the database and files parts.
+   2. **import:** run the SQL. It may only create and fill tables under the stage's prefix; any
+      other statement stops the push. Live tables are untouched.
+   3. **carry:** into the new tables, copy what must survive the swap: the bridge switched on with
+      its deadline, the stage id, and the publishing user's Application Passwords. Stop if that
+      user isn't an administrator in the new tables (publishing would lock them out).
+   4. **maintenance:** the bridge's own maintenance page (WordPress's `.maintenance` file would
+      block the bridge too). It answers everyone but the bridge with a 503 and ends by itself
+      30 minutes after the last push step.
+   5. **files:** for each file, write a line to a journal first, move live's original into the
+      stage's `backup/`, then write the new one with its modification time. Protected paths are
+      skipped and reported.
+   6. **swap:** one `RENAME TABLE` moves live's tables to `wpsync_o_<id>_` and the new ones into
+      place. The new tables have no maintenance flag, so the site is live again at once.
+   7. **cleanup:** clear the flag in the saved old tables; delete the assembled parts.
+9. **Verify:** the home page and a few recent pages and posts return HTTP 200 with no PHP error.
+   If not, roll back automatically and report.
+10. Switch the bridge off. The old tables and files stay on the server until `wpsync finalize`
+    (drops them), so `wpsync rollback` remains a one-command undo: it restores every journaled
+    file, swaps the old tables back, and drops the published ones. Rollback and finalize also
+    ask for a click in a macOS dialog.
 
-**Never replaced on live:** `wp-config.php`; `.htaccess` (unless `--include-htaccess`); host
-must-use plugins and drop-ins (`object-cache.php`, `advanced-cache.php`, anything the host
-added); `.well-known/`; files outside WordPress in the web root.
+A failure before the files step leaves live as it was (the stage is discarded). A failure from
+the files step on is rolled back automatically. Every step can be repeated after a crash; a
+push interrupted mid-way is undone with `wpsync rollback`.
 
-**Content freeze.** Publishing replaces everything, so edits made on live after the pull are lost.
-wpsync records the pull time. At push time, if live posts, comments or orders changed since then,
-it lists them and asks before going ahead.
+**Never replaced on live:** `wp-config.php`; `.htaccess` (unless `--include-htaccess`);
+`.user.ini`, `php.ini`, `web.config`; must-use plugins and drop-ins (`object-cache.php`,
+`advanced-cache.php`, `db.php`, `sunrise.php`); `.well-known/`; wpsync's own files.
 
 ## 8. Other commands
 
 | Command | Does |
 | --- | --- |
 | `wpsync init <url>` | The start gate's folder: `CLAUDE.md`, `.claude/settings.json`, `.gitignore`, `.wpsync.json` marked pending. Contacts nothing. (A later `pull` is the refresh; section 6, step 5 protects code.) |
-| `wpsync status` | Connection, bridge version, last pull and push, saved state on live |
-| `wpsync doctor` | Checks: login, Application Password, Authorization header, file mods, PHP limits, disk space, DDEV and Docker |
-| `wpsync rollback` / `finalize` | Undo the last push / delete its saved state |
+| `wpsync doctor --local` / `doctor <url>` | Every check before anything changes, reported together with fixes (section 14.4) |
+| `wpsync new <url>` | Phase 1 in one resumable command: init, doctor, connect, pull, verify; stops at the first thing that needs the developer |
+| `wpsync rollback` / `finalize` | Undo the last push / delete its saved state (each confirmed in a dialog) |
+| `wpsync status [--json]` | Where the project stands (phase, connection, last pull and push, DDEV), for the `wp-dev` skill |
+| `wpsync verify` | The local copy works: pages, wp-admin, permalinks, no live URLs left, images, plugins and theme match live |
 | `wpsync disconnect` | Section 4 |
 | `wpsync update-rules` | Refresh the WordPress-native rules in the project's `CLAUDE.md` from the installed plugin |
 
@@ -202,21 +222,27 @@ Git tracks only code the team writes. The rest can always be pulled again from l
 Installed from this private repository (`.claude-plugin/marketplace.json`); the friend needs read
 access to the repo.
 
-- **Skills** (plugin `wp-dev`, so `/wp-dev:setup` and so on):
-  - `setup`: the start gate below, then prerequisites, `wpsync connect` (explaining the dialog
-    and each failure), the first pull, and a check in the browser.
-  - `pull`: refresh from live, and what to do when git-tracked code changed on both sides.
-  - `publish`: content-freeze check, dry run, explicit confirmation, push, verify, offer
-    `finalize` only after the developer is happy.
-  - `work`: how to make changes while keeping the site a WordPress site.
+- **Skills** (plugin `wp-dev`; section 14.3):
+  - `wp-dev`: works out the phase from `wpsync status`, and runs phase 1 in full: the start gate
+    below, Mac and site checks (`wpsync doctor`), connect, pull, making the copy safe, verify,
+    and the hand-over.
+  - `wp-connect`: `wpsync connect`, the macOS dialog, the Application Password fallback for
+    protected logins, and each failure.
+  - `wp-pull`: refresh from live, and what to do when git-tracked code changed on both sides.
+  - `wp-publish`: content-freeze check, dry run, the developer's yes, `wpsync push` with its
+    confirmation dialog, verify, and rollback or finalize.
+  - `wp-work`: how to make changes while keeping the site a WordPress site.
 - **How wpsync ships in the plugin:** `claude-plugin/bin/wpsync` is a launcher that runs
   `bin/wpsync.mjs`, the CLI bundled into one file (`pnpm --filter wpsync bundle`; a unit test
   fails when it's stale) with Bun. Skills call it as `${CLAUDE_PLUGIN_ROOT}/bin/wpsync`, and it
   tells each site's `CLAUDE.md` its own path. The standalone binaries (`pnpm --filter wpsync
   build`) remain for running wpsync without the plugin.
-- **Rules** (`claude-plugin/rules/*.md`, plain text, per the owner's rule on AI instructions): the
-  WordPress-native rules (Pages, Posts, blocks, menus, existing plugins first; child theme for
-  looks; custom PHP last, in a prefixed plugin; nothing an editor might change is hard-coded),
+- **Rules** (`claude-plugin/rules/*.md`, plain text, per the owner's rule on AI instructions,
+  number-prefixed because they're copied in file-name order): the WordPress editing rules
+  (`1-wordpress-editing.md`: work with WordPress rather than overriding it, so admins can see and
+  change everything in wp-admin, and say so when code is the only way; the theme holds looks,
+  not content, so the home page is a Page set as the front page; Pages, Posts, blocks, menus,
+  existing plugins first; child theme for looks; custom PHP last, in a prefixed plugin),
   safety rules (nothing touches live without a yes) and the definition of done. `wpsync` copies
   them into each site's `CLAUDE.md`.
 - **Install helper:** the plugin's setup skill installs `wpsync`, DDEV and Docker (OrbStack or Docker Desktop) with

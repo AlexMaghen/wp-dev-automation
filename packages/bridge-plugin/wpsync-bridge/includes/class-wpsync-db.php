@@ -125,7 +125,7 @@ class Wpsync_Db {
 	}
 
 	/** Base tables that belong to this WordPress (its table prefix), sorted by name. */
-	private static function table_names() {
+	public static function table_names() {
 		global $wpdb;
 		$names = $wpdb->get_col(
 			$wpdb->prepare(
@@ -138,7 +138,7 @@ class Wpsync_Db {
 		return $names;
 	}
 
-	private static function primary_key( $table ) {
+	public static function primary_key( $table ) {
 		global $wpdb;
 		$keys = $wpdb->get_results( 'SHOW KEYS FROM ' . self::ident( $table ) . " WHERE Key_name = 'PRIMARY'", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL
 		if ( empty( $keys ) ) {
@@ -162,7 +162,7 @@ class Wpsync_Db {
 	 * Columns to copy, mapped to whether they hold binary data (written as hex). Generated
 	 * columns are left out: the database fills them in itself and refuses inserts into them.
 	 */
-	private static function columns( $table ) {
+	public static function columns( $table ) {
 		global $wpdb;
 		$columns = array();
 		foreach ( (array) $wpdb->get_results( 'SHOW COLUMNS FROM ' . self::ident( $table ), ARRAY_A ) as $column ) { // phpcs:ignore WordPress.DB.PreparedSQL
@@ -175,7 +175,7 @@ class Wpsync_Db {
 		return $columns;
 	}
 
-	private static function literal( $value, $is_binary ) {
+	public static function literal( $value, $is_binary ) {
 		if ( null === $value ) {
 			return 'NULL';
 		}
@@ -185,7 +185,7 @@ class Wpsync_Db {
 		return self::literal_text( $value );
 	}
 
-	private static function literal_text( $value ) {
+	public static function literal_text( $value ) {
 		global $wpdb;
 		if ( null === $value ) {
 			return 'NULL';
@@ -194,7 +194,7 @@ class Wpsync_Db {
 		return "'" . $wpdb->remove_placeholder_escape( $wpdb->_real_escape( (string) $value ) ) . "'";
 	}
 
-	private static function ident( $name ) {
+	public static function ident( $name ) {
 		return '`' . str_replace( '`', '``', $name ) . '`';
 	}
 
@@ -216,5 +216,72 @@ class Wpsync_Db {
 			return false;
 		}
 		return $data;
+	}
+
+	/**
+	 * Writes one table as framed SQL (see packages/protocol/src/push.ts) under a new name:
+	 * DROP, CREATE, then INSERTs of at most ~500 KB each. Used on the local copy when pushing.
+	 *
+	 * @param resource $out Open file handle.
+	 */
+	public static function export_framed( $table, $new_name, $out ) {
+		global $wpdb;
+		$create = $wpdb->get_row( 'SHOW CREATE TABLE ' . self::ident( $table ), ARRAY_N );
+		// SHOW CREATE TABLE starts with exactly "CREATE TABLE `name`": swap the name there only.
+		$create_sql = preg_replace( '/^CREATE TABLE `(?:[^`]|``)+`/', 'CREATE TABLE ' . self::ident( $new_name ), $create[1], 1 );
+		self::frame( $out, 'DROP TABLE IF EXISTS ' . self::ident( $new_name ) );
+		self::frame( $out, $create_sql );
+
+		$columns = self::columns( $table );
+		$pk      = self::primary_key( $table );
+		$select  = implode( ', ', array_map( array( __CLASS__, 'ident' ), array_keys( $columns ) ) );
+		$prefix  = 'INSERT INTO ' . self::ident( $new_name ) . ' (' . $select . ') VALUES ';
+		$after   = null;
+		$offset  = 0;
+		$rows    = 0;
+		do {
+			$sql = "SELECT {$select} FROM " . self::ident( $table );
+			if ( $pk ) {
+				if ( null !== $after ) {
+					$sql .= ' WHERE (' . implode( ', ', array_map( array( __CLASS__, 'ident' ), $pk ) ) . ') > ('
+						. implode( ', ', array_map( array( __CLASS__, 'literal_text' ), $after ) ) . ')';
+				}
+				$sql .= ' ORDER BY ' . implode( ', ', array_map( array( __CLASS__, 'ident' ), $pk ) ) . ' LIMIT ' . WPSYNC_DB_ROWS_LIMIT;
+			} else {
+				$sql .= ' LIMIT ' . $offset . ', ' . WPSYNC_DB_ROWS_LIMIT;
+			}
+			$batch     = (array) $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL
+			$statement = '';
+			foreach ( $batch as $row ) {
+				$values = array();
+				foreach ( $columns as $name => $is_binary ) {
+					$values[] = self::literal( $row[ $name ], $is_binary );
+				}
+				$tuple = '(' . implode( ',', $values ) . ')';
+				if ( '' !== $statement && strlen( $statement ) + strlen( $tuple ) > 500000 ) {
+					self::frame( $out, $statement );
+					$statement = '';
+				}
+				$statement .= ( '' === $statement ? $prefix : ',' ) . $tuple;
+			}
+			if ( '' !== $statement ) {
+				self::frame( $out, $statement );
+			}
+			$rows += count( $batch );
+			if ( $pk && $batch ) {
+				$last  = end( $batch );
+				$after = array();
+				foreach ( $pk as $column ) {
+					$after[] = $last[ $column ];
+				}
+			}
+			$offset += count( $batch );
+		} while ( count( $batch ) === WPSYNC_DB_ROWS_LIMIT );
+		return $rows;
+	}
+
+	/** Writes one statement framed as "<byte length>\n<statement>\n". */
+	public static function frame( $out, $statement ) {
+		fwrite( $out, strlen( $statement ) . "\n" . $statement . "\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 	}
 }

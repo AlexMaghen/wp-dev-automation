@@ -22,6 +22,13 @@ export const DEADLINE_SECONDS = 2 * 60 * 60;
 
 /** Option names the bridge stores in wp_options. */
 export const OPTION_DEADLINE = "wpsync_bridge_deadline";
+/** Unix time a push's maintenance page ends by itself (so a crashed push can't leave it up). */
+export const OPTION_MAINTENANCE = "wpsync_maintenance";
+/** The id of the push whose saved state is on the server (for rollback and finalize). */
+export const OPTION_STAGE = "wpsync_stage";
+
+/** Seconds the maintenance page stays up without a push step renewing it. */
+export const MAINTENANCE_SECONDS = 30 * 60;
 
 /** Route paths, relative to the namespace. */
 export const ROUTES = {
@@ -31,6 +38,12 @@ export const ROUTES = {
   filesList: "/files/list",
   filesFetch: "/files/fetch",
   filesRead: "/files/read",
+  changes: "/changes",
+  stageBegin: "/stage/begin",
+  stageChunk: "/stage/chunk",
+  stageApply: "/stage/apply",
+  rollback: "/rollback",
+  finalize: "/finalize",
 } as const;
 
 /**
@@ -56,6 +69,27 @@ export const PULL_EXCLUDES = [
   "wp-content/wpvividbackups",
   "wp-content/wflogs",
 ] as const;
+
+/**
+ * Paths a push never changes on live, on top of PULL_EXCLUDES: the server's own configuration,
+ * files hosts add (must-use plugins, cache drop-ins) and wpsync's own. ".htaccess" can be
+ * pushed on request (includeHtaccess).
+ */
+export const PUSH_PROTECTED = [
+  ".htaccess",
+  ".user.ini",
+  "php.ini",
+  "web.config",
+  ".well-known",
+  "wp-content/mu-plugins",
+  "wp-content/object-cache.php",
+  "wp-content/advanced-cache.php",
+  "wp-content/db.php",
+  "wp-content/sunrise.php",
+] as const;
+
+/** Most bytes of one uploaded push chunk, before compression. */
+export const PUSH_CHUNK_BYTES = 4_000_000;
 
 /** Most SQL a single db/rows response carries, in bytes. */
 export const DB_CHUNK_BYTES = 2_000_000;
@@ -84,6 +118,8 @@ export const ERROR_CODES = {
   badRequest: "wpsync_bad_request",
   notFound: "wpsync_not_found",
   unsupported: "wpsync_unsupported",
+  conflict: "wpsync_conflict",
+  insufficientSpace: "wpsync_insufficient_space",
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

@@ -11,6 +11,10 @@ const WPSYNC_REST_NAMESPACE = 'wpsync/v1';
 const WPSYNC_PLUGIN_FILE = 'wpsync-bridge/wpsync-bridge.php';
 const WPSYNC_DEADLINE_SECONDS = 7200;
 const WPSYNC_OPTION_DEADLINE = 'wpsync_bridge_deadline';
+const WPSYNC_OPTION_MAINTENANCE = 'wpsync_maintenance';
+const WPSYNC_OPTION_STAGE = 'wpsync_stage';
+const WPSYNC_MAINTENANCE_SECONDS = 1800;
+const WPSYNC_PUSH_CHUNK_BYTES = 4000000;
 
 const WPSYNC_DB_CHUNK_BYTES = 2000000;
 const WPSYNC_DB_ROWS_LIMIT = 2000;
@@ -41,12 +45,31 @@ const WPSYNC_PULL_EXCLUDES = array(
 	'wp-content/wflogs',
 );
 
+const WPSYNC_PUSH_PROTECTED = array(
+	'.htaccess',
+	'.user.ini',
+	'php.ini',
+	'web.config',
+	'.well-known',
+	'wp-content/mu-plugins',
+	'wp-content/object-cache.php',
+	'wp-content/advanced-cache.php',
+	'wp-content/db.php',
+	'wp-content/sunrise.php',
+);
+
 const WPSYNC_ROUTE_INFO = '/info';
 const WPSYNC_ROUTE_DB_TABLES = '/db/tables';
 const WPSYNC_ROUTE_DB_ROWS = '/db/rows';
 const WPSYNC_ROUTE_FILES_LIST = '/files/list';
 const WPSYNC_ROUTE_FILES_FETCH = '/files/fetch';
 const WPSYNC_ROUTE_FILES_READ = '/files/read';
+const WPSYNC_ROUTE_CHANGES = '/changes';
+const WPSYNC_ROUTE_STAGE_BEGIN = '/stage/begin';
+const WPSYNC_ROUTE_STAGE_CHUNK = '/stage/chunk';
+const WPSYNC_ROUTE_STAGE_APPLY = '/stage/apply';
+const WPSYNC_ROUTE_ROLLBACK = '/rollback';
+const WPSYNC_ROUTE_FINALIZE = '/finalize';
 
 const WPSYNC_ERROR_NOT_LOGGED_IN = 'wpsync_not_logged_in';
 const WPSYNC_ERROR_FORBIDDEN = 'wpsync_forbidden';
@@ -55,3 +78,5 @@ const WPSYNC_ERROR_EXPIRED = 'wpsync_expired';
 const WPSYNC_ERROR_BAD_REQUEST = 'wpsync_bad_request';
 const WPSYNC_ERROR_NOT_FOUND = 'wpsync_not_found';
 const WPSYNC_ERROR_UNSUPPORTED = 'wpsync_unsupported';
+const WPSYNC_ERROR_CONFLICT = 'wpsync_conflict';
+const WPSYNC_ERROR_INSUFFICIENT_SPACE = 'wpsync_insufficient_space';

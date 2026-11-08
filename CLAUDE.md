@@ -3,9 +3,10 @@
 Pull a live WordPress site into local DDEV, work on it, publish it back to replace live,
 with only a WordPress admin login (no hosting access, no paid migration plugin).
 
-**Status: design in `docs/design.md` (read it first). Build steps 1–4 of its section 13 are done
-(2026-11-08): protocol + bridge `info`, `wpsync connect`, `wpsync pull`, and the site template +
-Claude plugin. Next: step 5, push.**
+**Status: design in `docs/design.md` (read it first). Build steps 1–5 of its section 13 are done
+(2026-11-08): protocol + bridge `info`, `wpsync connect`, `wpsync pull`, the site template +
+Claude plugin, and `wpsync push` / `rollback` / `finalize`. Next: the rest of section 14
+(doctor, verify, status, new, the push confirmation dialog, the login fallback), then step 6.**
 Not built yet from step 2: the fallback for sites whose login is blocked (two-factor, CAPTCHA),
 where the developer pastes an Application Password they made themselves.
 
