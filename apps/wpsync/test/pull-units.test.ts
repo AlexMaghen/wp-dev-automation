@@ -172,3 +172,15 @@ describe("progress for long jobs", () => {
     expect(lines.at(-1)).not.toContain("last data");
   });
 });
+
+describe("publish confirmation", () => {
+  it("accepts the live domain however it's typed, and nothing else", async () => {
+    const { sameHost } = await import("../src/confirm-dialog");
+    for (const typed of ["example.com", " Example.COM ", "https://example.com", "https://example.com/", "http://example.com"]) {
+      expect(sameHost(typed, "example.com"), typed).toBe(true);
+    }
+    for (const typed of ["", "www.example.com", "example.co", "example.com.evil", "https://example.com/blog"]) {
+      expect(sameHost(typed, "example.com"), typed).toBe(false);
+    }
+  });
+});

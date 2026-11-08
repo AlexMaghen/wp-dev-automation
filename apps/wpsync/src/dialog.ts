@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { WpsyncError } from "./errors";
+import { notify } from "./progress";
 
 export interface Credentials {
   username: string;
@@ -11,6 +12,16 @@ export interface Credentials {
  * Whatever the person types goes only to this process: it is never printed or logged.
  */
 export type CredentialsProvider = (site: { name: string; homeUrl: string }, suggestedUsername?: string) => Promise<Credentials>;
+
+/**
+ * Every wpsync dialog: comes to the front (a dialog from a background process can open behind
+ * other windows), plays a sound, and gives up after half an hour, which counts as Cancel, so
+ * nothing waits for hours (with the bridge switched on) while nobody is there.
+ */
+export const DIALOG_GIVE_UP_SECONDS = 1800;
+export const DIALOG_PRELUDE = "activate\nbeep";
+/** After a dialog that gave up: stop as if Cancel was clicked (error -128). */
+export const GAVE_UP_CHECK = "if gave up of r then error number -128";
 
 function appleScriptString(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -25,14 +36,20 @@ export function loginDialogScript(homeUrl: string, suggestedUsername = ""): stri
   const intro = `Enter an admin username and password for ${homeUrl}.`;
   const note = "wpsync uses the password once, to create its own revocable key on the site. It never saves the password.";
   return [
-    `set u to text returned of (display dialog ${appleScriptString(`${intro}\n\nUsername:`)} default answer ${appleScriptString(suggestedUsername)} with title "wpsync" buttons {"Cancel", "Next"} default button "Next" cancel button "Cancel")`,
-    `set p to text returned of (display dialog ("Password for " & u & " at " & ${appleScriptString(homeUrl)} & ":" & return & return & ${appleScriptString(note)}) default answer "" with hidden answer with title "wpsync" buttons {"Cancel", "Connect"} default button "Connect" cancel button "Cancel")`,
+    DIALOG_PRELUDE,
+    `set r to (display dialog ${appleScriptString(`${intro}\n\nUsername:`)} default answer ${appleScriptString(suggestedUsername)} with title "wpsync" buttons {"Cancel", "Next"} default button "Next" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
+    GAVE_UP_CHECK,
+    "set u to text returned of r",
+    `set r to (display dialog ("Password for " & u & " at " & ${appleScriptString(homeUrl)} & ":" & return & return & ${appleScriptString(note)}) default answer "" with hidden answer with title "wpsync" buttons {"Cancel", "Connect"} default button "Connect" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
+    GAVE_UP_CHECK,
+    "set p to text returned of r",
     "return u & linefeed & p",
   ].join("\n");
 }
 
 /** Shows the dialogs with osascript. The script goes in on stdin, the answers come back on stdout. */
 export const macLoginDialog: CredentialsProvider = async (site, suggestedUsername) => {
+  notify("wpsync is waiting for you", `Enter an admin username and password for ${site.homeUrl} in the wpsync dialog.`);
   let output: string;
   try {
     output = execFileSync("osascript", ["-"], {
