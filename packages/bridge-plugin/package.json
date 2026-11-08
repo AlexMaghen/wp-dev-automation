@@ -7,12 +7,12 @@
   "scripts": {
     "lint": "for f in $(find wpsync-bridge -name '*.php'); do php -l \"$f\" >/dev/null || exit 1; done",
     "typecheck": "tsc -p tsconfig.json",
-    "test:contract": "vitest run --config vitest.contract.config.ts",
-    "harness:stop": "cd test/harness/site && ddev stop"
+    "test:contract": "vitest run --config vitest.contract.config.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@wp-dev-automation/protocol": "workspace:*",
+    "@wp-dev-automation/test-harness": "workspace:*",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   }

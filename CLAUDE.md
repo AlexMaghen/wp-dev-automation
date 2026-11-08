@@ -3,15 +3,24 @@
 Pull a live WordPress site into local DDEV, work on it, publish it back to replace live,
 with only a WordPress admin login (no hosting access, no paid migration plugin).
 
-**Status: design in `docs/design.md` (read it first). Build step 1 of its section 13 is done
-(protocol + bridge `info` + contract harness, 2026-11-08). Next: step 2, `wpsync connect`.**
+**Status: design in `docs/design.md` (read it first). Build steps 1–2 of its section 13 are done
+(2026-11-08): protocol + bridge `info`, and `wpsync connect`. Next: step 3, pull.**
+Not built yet from step 2: the fallback for sites whose login is blocked (two-factor, CAPTCHA),
+where the developer pastes an Application Password they made themselves.
 
 - `packages/protocol` is the single source of truth. Change it there, run `pnpm generate`
   (writes the bridge's `includes/protocol.php` and `json-schema/`), then update the PHP until
   `pnpm test:contract` passes.
-- `pnpm test` runs unit tests; `pnpm test:contract` (needs Docker and DDEV) starts the
-  `wpsync-harness` DDEV site in `packages/bridge-plugin/test/harness/site/` and runs the real
-  bridge against the schemas. Stop it with `pnpm --filter @wp-dev-automation/bridge-plugin harness:stop`.
+- `pnpm test` runs unit tests; `pnpm test:contract` (needs Docker and DDEV) runs the bridge
+  and the CLI against `wpsync-harness`, a throwaway DDEV WordPress site in
+  `packages/test-harness/site/` (helpers in `packages/test-harness/src`). Stop it with
+  `pnpm --filter @wp-dev-automation/test-harness stop`.
+- After changing the bridge's PHP, run `pnpm generate`: it also re-embeds the bridge files into
+  `apps/wpsync/src/generated/bridge-files.ts`, which the CLI zips and uploads.
+- Run the CLI with `apps/wpsync/node_modules/.bin/bun apps/wpsync/src/main.ts`; `pnpm --filter
+  wpsync build` compiles standalone binaries into `apps/wpsync/dist/`.
+- Claude never handles a site password: `wpsync connect` takes it through a macOS dialog the
+  person types into. Contract tests pass harness-generated throwaway passwords in code instead.
 - The bridge targets PHP 7.4+: no PHP 8-only syntax (match, union types, nullsafe, named args).
 
 Planned layout (Turborepo, per the owner's global rules):

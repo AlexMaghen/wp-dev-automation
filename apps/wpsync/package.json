@@ -1,0 +1,32 @@
+{
+  "name": "wpsync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Copy a live WordPress site into local DDEV and publish it back, with only an admin login.",
+  "type": "module",
+  "bin": {
+    "wpsync": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "bun src/main.ts",
+    "generate": "tsx scripts/embed-bridge.ts",
+    "build": "./scripts/compile.sh",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:contract": "vitest run --config vitest.contract.config.ts"
+  },
+  "dependencies": {
+    "@wp-dev-automation/protocol": "workspace:*",
+    "fflate": "^0.8.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@wp-dev-automation/bridge-plugin": "workspace:*",
+    "@wp-dev-automation/test-harness": "workspace:*",
+    "bun": "^1.4.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

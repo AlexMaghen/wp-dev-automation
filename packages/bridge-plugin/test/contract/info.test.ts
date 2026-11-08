@@ -11,7 +11,7 @@ import {
   ROUTES,
 } from "@wp-dev-automation/protocol";
 import { afterAll, beforeAll, describe, expect, it, inject } from "vitest";
-import { wp } from "../harness/ddev";
+import { wp } from "@wp-dev-automation/test-harness";
 import { PLUGIN_ROUTE, rest, setBridgeActive } from "./client";
 
 const INFO = `/${REST_NAMESPACE}${ROUTES.info}`;

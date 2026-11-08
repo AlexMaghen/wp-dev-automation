@@ -1,5 +1,5 @@
 # Throwaway WordPress site that plays the "live" site in contract tests.
-# Only this file is committed; test/harness/global-setup.ts builds the rest.
+# Only this file is committed; packages/test-harness/src/index.ts builds the rest.
 name: wpsync-harness
 type: wordpress
 docroot: wp

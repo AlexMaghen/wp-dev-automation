@@ -16,8 +16,8 @@ dist/
 .DS_Store
 
 # Contract-test harness: a throwaway DDEV WordPress site (only its config is committed)
-packages/bridge-plugin/test/harness/site/*
-!packages/bridge-plugin/test/harness/site/.ddev/
-packages/bridge-plugin/test/harness/site/.ddev/*
-!packages/bridge-plugin/test/harness/site/.ddev/config.yaml
+packages/test-harness/site/*
+!packages/test-harness/site/.ddev/
+packages/test-harness/site/.ddev/*
+!packages/test-harness/site/.ddev/config.yaml
 *.tsbuildinfo
