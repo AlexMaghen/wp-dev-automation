@@ -61,7 +61,7 @@ export async function connect(options: ConnectOptions, deps: ConnectDeps): Promi
     throw new WpsyncError(
       "application_passwords_unavailable",
       `${site.homeUrl} doesn't offer Application Passwords, which wpsync uses to sign in.`,
-      "WordPress turns them off on sites without HTTPS, and some security plugins turn them off. Fix that and connect again.",
+      "WordPress turns them off on sites without HTTPS, and security plugins can too. Wordfence does by default: Wordfence → Login Security → Settings, untick \"Disable WordPress application passwords\", save, and connect again.",
     );
   }
   const key = siteKey(site.homeUrl);

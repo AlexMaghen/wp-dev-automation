@@ -184,7 +184,7 @@ export async function checkSite(url: string, store: SecretStore, options: { allo
     label: "Application Passwords",
     ok: site.applicationPasswords,
     detail: site.applicationPasswords ? "available" : "turned off",
-    fix: "WordPress offers them only over HTTPS, and some security plugins turn them off (look for a setting about Application Passwords).",
+    fix: "WordPress offers them only over HTTPS, and security plugins can turn them off. Wordfence does by default: in wp-admin go to Wordfence → Login Security → Settings and untick \"Disable WordPress application passwords\", then save.",
   });
 
   const connection = await store.get(siteKey(site.homeUrl));
@@ -296,7 +296,7 @@ export function allOk(checks: Check[]): boolean {
 export function formatChecks(checks: Check[]): string {
   return checks
     .map((check) => {
-      const mark = check.ok ? "ok  " : check.warning ? "note" : "FIX ";
+      const mark = check.warning ? "note" : check.ok ? "ok  " : "FIX ";
       const lines = [`${mark} ${check.label}: ${check.detail}`];
       if (!check.ok && check.fix) lines.push(`       → ${check.fix}${check.needsPerson ? " (you need to do this yourself)" : ""}`);
       else if (check.warning && check.fix) lines.push(`       ${check.fix}`);

@@ -40,7 +40,7 @@ wpsync says the login was blocked. Then:
 | --- | --- |
 | WordPress refused the login | Wrong username or password; run connect again. |
 | isn't an administrator | Use an administrator account. |
-| doesn't offer Application Passwords | The site isn't on HTTPS, or a security plugin turned them off. |
+| doesn't offer Application Passwords | The site isn't on HTTPS, or a security plugin turned them off. Wordfence does by default: Wordfence → Login Security → Settings, untick "Disable WordPress application passwords". |
 | drops the Authorization header | A hosting setting: ask the host to pass the Authorization header to PHP. |
 | doesn't allow uploading plugins | The host forbids plugin installs; wpsync can't work there. |
 
