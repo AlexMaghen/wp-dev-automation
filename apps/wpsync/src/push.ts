@@ -16,7 +16,7 @@ import {
 import { downloadDatabase } from "./db-download";
 import { WpsyncError } from "./errors";
 import { fetchInto, listLocal, listRemote } from "./file-sync";
-import { bytes, count } from "./format";
+import { bytes, count, plural } from "./format";
 import { http, parseJson } from "./http";
 import { projectAt, requireDocker, type Project, type ProjectFile } from "./project";
 import { exportDatabase, pieces, planPush, scratchDir, toLiveReplacements, writeFilesArchive, type PushFilePlan } from "./push-local";
@@ -243,7 +243,7 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
       const remotePaths = new Set((await listRemote(rest)).map((e) => e.path));
       const touched = [...plan.files.upload.filter((e) => remotePaths.has(e.path)).map((e) => e.path), ...plan.files.remove];
       if (touched.length) {
-        log(`Backing up ${count(touched.length)} live files this push replaces or deletes…`);
+        log(`Backing up ${plural(touched.length, "live file")} this push replaces or deletes…`);
         const live = (await listRemote(rest)).filter((e) => touched.includes(e.path));
         progress.step("backing up live's files", { total: live.length, unit: "files" });
         await fetchInto(rest, join(backupDir, "files"), live, (files, total) => progress.update({ done: files, bytes: total }), () => progress.activity());
@@ -271,7 +271,7 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
         log(`Uploading the database (${bytes(db.bytes)})…`);
         progress.step("uploading the database", { unit: "pieces" });
         const dbChunks = await upload(rest, stage.stageId, "db", db.path, piece, progress);
-        log(`Uploading ${count(plan.files.upload.length)} files (${bytes(archive.bytes)})…`);
+        log(`Uploading ${plural(plan.files.upload.length, "file")} (${bytes(archive.bytes)})…`);
         progress.step("uploading files", { unit: "pieces" });
         const fileChunks = await upload(rest, stage.stageId, "files", archive.path, piece, progress);
 
@@ -332,7 +332,7 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
 export function describePlan(plan: PushPlan): string {
   const lines = [`Publishing would replace ${plan.homeUrl} with this local copy:`];
   lines.push(`  Database   ${count(plan.database.tables)} tables (${bytes(plan.database.bytes)})`);
-  lines.push(`  Files      ${count(plan.files.upload.length)} to upload (${bytes(plan.files.uploadBytes)}), ${count(plan.files.remove.length)} to delete on live`);
+  lines.push(`  Files      ${plural(plan.files.upload.length, "file")} to upload (${bytes(plan.files.uploadBytes)}), ${count(plan.files.remove.length)} to delete on live`);
   for (const path of plan.files.remove.slice(0, 10)) lines.push(`               delete ${path}`);
   if (plan.files.remove.length > 10) lines.push(`               …and ${count(plan.files.remove.length - 10)} more`);
   if (plan.theme.live !== plan.theme.local) lines.push(`  Theme      ${plan.theme.live} → ${plan.theme.local}`);

@@ -15,3 +15,8 @@ export function bytes(value: number): string {
   }
   return `${size.toLocaleString("en-US", { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
+
+/** "1 file", "2 files", "1,234 files". */
+export function plural(value: number, one: string, many = `${one}s`): string {
+  return `${count(value)} ${value === 1 ? one : many}`;
+}
