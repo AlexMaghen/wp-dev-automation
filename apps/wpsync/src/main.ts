@@ -245,7 +245,14 @@ async function runDoctor(args: Parsed): Promise<number> {
 async function runStatus(args: Parsed): Promise<void> {
   const result = await status({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http") }, new MacKeychain());
   const lines = [`Folder   ${result.dir}`, `Phase    ${result.phase}`];
-  if (result.homeUrl) lines.push(`Live     ${result.homeUrl}${result.connected ? (result.keyWorks ? " (connected)" : " (key no longer works)") : " (not connected)"}`);
+  const connection = !result.connected
+    ? " (not connected)"
+    : result.keyWorks
+      ? " (connected)"
+      : result.wordfence === "back-on"
+        ? " (connected; Wordfence blocks wpsync's key until its setting is switched off)"
+        : " (key no longer works)";
+  if (result.homeUrl) lines.push(`Live     ${result.homeUrl}${connection}`);
   if (result.localUrl) lines.push(`Local    ${result.localUrl}${result.ddevRunning ? " (running)" : ""}`);
   if (result.lastPull) lines.push(`Pulled   ${result.lastPull}`);
   if (result.lastPush) lines.push(`Pushed   ${result.lastPush.at}${result.lastPush.finalized ? "" : " (waiting for finalize or rollback)"}`);
