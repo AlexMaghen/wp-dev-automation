@@ -8,7 +8,7 @@ import { bytes, count } from "./format";
  *   progress: database 12/48 tables, 38.2 MB · 2m 10s · last data 1s ago
  *   stalled: no data for 1m 0s during database (wp_wffilemods)
  *
- * A `progress:` line goes out every `intervalMs`; a `stalled:` line when nothing has arrived for
+ * A `progress:` line goes out every `intervalMs` (10 s); a `stalled:` line when nothing has arrived for
  * `stallMs`, and again every further `stallMs` while it lasts.
  */
 export class Progress {
@@ -37,7 +37,7 @@ export class Progress {
   }
 
   start(): this {
-    const interval = this.options.intervalMs ?? 15_000;
+    const interval = this.options.intervalMs ?? 10_000;
     this.timer = setInterval(() => this.tick(), Math.min(interval, 5_000));
     this.timer.unref?.();
     this.lastPrinted = this.now();
@@ -91,7 +91,7 @@ export class Progress {
       this.log(`stalled: no data for ${duration(idle)} during ${this.stepName}${this.detail ? ` (${this.detail})` : ""}`);
       return;
     }
-    if (now - this.lastPrinted >= (this.options.intervalMs ?? 15_000)) {
+    if (now - this.lastPrinted >= (this.options.intervalMs ?? 10_000)) {
       this.lastPrinted = now;
       this.log(this.line(now));
     }

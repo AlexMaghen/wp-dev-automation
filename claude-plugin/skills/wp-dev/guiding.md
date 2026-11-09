@@ -117,6 +117,12 @@ Then wait with the "Done, check it" dialog.
 
 Open the browser yourself to check; tell the developer which tab to look at.
 
+**Use Chrome (Claude in Chrome) for the local site.** The app's built-in browser pane blocks a
+`*.ddev.site` page's styles, scripts and images (`ERR_BLOCKED_BY_CLIENT` in its network log), so
+the copy looks unstyled there even when it's perfect. Never take that look as a broken copy.
+The built-in pane is fine for the live site. Chrome also needs `mkcert -install` to have run
+(setup step 2), or it refuses the local https address.
+
 ## Long jobs (pull, publish, rollback)
 
 A first pull or a publish can take many minutes, and the developer can't tell from the chat
@@ -127,21 +133,26 @@ whether it's working, slow or stuck. Nothing can lock the chat, so make it plain
    and that you'll say when it's done. For example:
 
    > Copying wp-dev-automation.maghen.com to this Mac now: about 250 MB, so probably 5 to 10
-   > minutes. You don't need to do anything. Please keep the Mac awake and this window open;
-   > I'll post progress every few minutes and tell you when it's done.
+   > minutes. You don't need to do anything. You can watch it live in the terminal tab I'm
+   > opening; I'll also post a short update here about once a minute and tell you when it's
+   > done. Please keep the Mac awake and this window open.
 
    The size comes from `wpsync doctor <site-url>` ("site is about …"). Allow about a minute per
    50 MB on a home connection, and say it's a rough guess.
 2. **Mark it in the checklist:** the step in progress with its estimate, for example "Copy the
    live site to this Mac (about 10 minutes)". If the app can keep the Mac awake (a keep-awake
    tool), ask for it for the duration.
-3. **Stay with the job.** Run it in the background and watch its output (a monitor on the lines
-   wpsync prints), so the session keeps working until it finishes instead of going idle. Don't
-   start other work in the meantime.
-4. **Pass on progress, not noise.** wpsync prints a `progress:` line about every 15 seconds:
-   the step, how far along, the amount, the time so far, and how long since data last arrived.
-   Every few minutes, give one line: "Database done (48 tables); files: 1,240 of 8,400
-   (310 MB)."
+3. **Run it where the developer can watch it.** Start the command in a **terminal tab** of the
+   app (the terminal tool that runs a command in a tab they can see), and link that tab in the
+   chat. wpsync prints a `progress:` line **every 10 seconds**, including while DDEV starts and
+   loads the database on this Mac ("loading the database into DDEV · 1m 20s (Importing…)"), so
+   the tab never sits silent. Then **stay with the job:** read the tab's output every minute or
+   so (the tool that reads a terminal tab), so the session keeps working until it finishes
+   instead of going idle. Don't start other work in the meantime. Only if the app has no
+   terminal tab: run it in the background and watch its output instead.
+4. **Pass on progress, not noise.** About once a minute, one line in the chat with the latest
+   numbers: "Database done (48 tables); files: 1,240 of 8,400 (310 MB)", or "Loading the
+   database into DDEV, 2 minutes so far." The tab has the 10-second detail.
 5. **Stalls.** wpsync prints `stalled:` when no data has arrived for a minute. Tell the developer
    at once, in plain words ("It's stopped receiving data for a minute; I'm checking why"), then
    investigate: is the site answering, is the Mac online, is the size still changing. Never let

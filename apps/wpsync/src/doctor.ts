@@ -191,13 +191,16 @@ export async function checkLocal(): Promise<Check[]> {
 
   const caroot = runTool("mkcert", ["-CAROOT"]);
   const trusted = caroot.ok && existsSync(join(caroot.out, "rootCA.pem"));
+  // Required, not optional: without it DDEV serves local sites over plain http and browsers
+  // warn about them; installed part-way through, it switches existing local sites to https.
   checks.push({
     id: "mkcert",
     label: "Trusted HTTPS for local sites (mkcert)",
     ok: trusted,
-    warning: !trusted,
-    detail: trusted ? "installed" : "not set up: local sites work, but browsers warn about their certificate",
-    fix: "Run mkcert -install in Terminal (it asks for your Mac password), then restart the browser.",
+    detail: trusted ? "set up" : caroot.ok ? "installed, but not set up yet" : "not installed (it comes with DDEV)",
+    fix: caroot.ok
+      ? "Run mkcert -install in Terminal (it asks for your Mac password once), then quit and reopen your browser."
+      : "Install DDEV first (brew install ddev/ddev/ddev brings mkcert), then run mkcert -install in Terminal (it asks for your Mac password once).",
     needsPerson: true,
   });
 

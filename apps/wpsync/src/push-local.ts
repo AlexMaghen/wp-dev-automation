@@ -4,6 +4,7 @@ import { PUSH_PROTECTED, isExcluded, type FileEntry } from "@wp-dev-automation/p
 import { WpsyncError } from "./errors";
 import { BRIDGE_FILES, LOCAL_BRIDGE_FILES } from "./generated/embedded";
 import { sameFile, type LocalEntry } from "./file-sync";
+import type { Progress } from "./progress";
 import type { Project } from "./project";
 
 /** The local half of publishing: what to send, and the two files that carry it. */
@@ -76,12 +77,14 @@ export function writeFilesArchive(project: Project, plan: PushFilePlan): { path:
  * its addresses to live's with WP-CLI (safe for serialized data), export every table under the
  * stage's new prefix with the bridge's own SQL writer, then restore the snapshot.
  */
-export function exportDatabase(
+export async function exportDatabase(
   project: Project,
   newPrefix: string,
   replacements: Array<[string, string]>,
   log: (line: string) => void,
-): { path: string; bytes: number; tables: number; rows: number } {
+  progress?: Progress,
+): Promise<{ path: string; bytes: number; tables: number; rows: number }> {
+  const say = (detail: string) => progress?.update({ detail });
   const scratch = scratchDir(project);
   const bridgeDir = join(scratch, "bridge");
   rmSync(bridgeDir, { recursive: true, force: true });
@@ -97,19 +100,24 @@ export function exportDatabase(
 
   const snapshot = `wpsync-push-${Date.now()}`;
   log("  Saving a snapshot of the local database…");
-  project.ddev(["snapshot", "--name", snapshot]);
+  progress?.step("saving a snapshot of the local database", { network: false });
+  await project.ddevLive(["snapshot", "--name", snapshot], say);
   let result: { tables: number; rows: number };
   try {
     log("  Switching addresses to live's for the export…");
-    for (const [from, to] of replacements) {
-      project.wp("search-replace", from, to, "--all-tables-with-prefix", "--precise", "--quiet");
+    progress?.step("switching addresses for live", { total: replacements.length, unit: "replacements", network: false });
+    for (const [i, [from, to]] of replacements.entries()) {
+      progress?.update({ done: i, detail: from });
+      await project.wpLive(["search-replace", from, to, "--all-tables-with-prefix", "--precise", "--quiet"]);
     }
     log("  Exporting the database…");
-    const printed = project.wp("eval-file", "/var/www/html/.wpsync-tmp/bridge/export.php", "/var/www/html/.wpsync-tmp/db.frames", newPrefix);
+    progress?.step("exporting the local database", { network: false });
+    const printed = await project.wpLive(["eval-file", "/var/www/html/.wpsync-tmp/bridge/export.php", "/var/www/html/.wpsync-tmp/db.frames", newPrefix]);
     result = JSON.parse(printed.split("\n").pop() ?? "{}") as { tables: number; rows: number };
   } finally {
     log("  Restoring the local database from the snapshot…");
-    project.ddev(["snapshot", "restore", snapshot]);
+    progress?.step("restoring the local database", { network: false });
+    await project.ddevLive(["snapshot", "restore", snapshot], say);
     removeSnapshot(project, snapshot);
   }
   project.syncFiles();

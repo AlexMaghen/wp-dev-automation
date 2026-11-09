@@ -33,8 +33,22 @@ export function deleteProject(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
 }
 
-/** Plain HTTP on purpose: see the comment in site/.ddev/config.yaml. */
-export const BASE_URL = "http://wpsync-harness.ddev.site";
+/**
+ * mkcert's certificate authority, when it's installed (mkcert -install). DDEV then serves sites
+ * over https by default, and the contract tests trust it through NODE_EXTRA_CA_CERTS (set in
+ * the vitest configs).
+ */
+export const MKCERT_ROOT_CA: string | null = (() => {
+  try {
+    const pem = join(execFileSync("mkcert", ["-CAROOT"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(), "rootCA.pem");
+    return existsSync(pem) ? pem : null;
+  } catch {
+    return null;
+  }
+})();
+
+/** https when mkcert is set up (as DDEV then prefers); otherwise plain http, see site/.ddev/config.yaml. */
+export const BASE_URL = MKCERT_ROOT_CA ? "https://wpsync-harness.ddev.site" : "http://wpsync-harness.ddev.site";
 
 /** Runs a ddev command in the harness site and returns its trimmed stdout. */
 export function ddev(...args: string[]): string {

@@ -265,7 +265,7 @@ export async function push(options: PushOptions, deps: PushDeps): Promise<PushRe
       try {
         log("Preparing the local copy for live…");
         progress.step("preparing the local copy", { network: false });
-        const db = exportDatabase(project, stage.newPrefix, toLiveReplacements(meta.siteUrl!, meta.homeUrl, meta.localUrl!), log);
+        const db = await exportDatabase(project, stage.newPrefix, toLiveReplacements(meta.siteUrl!, meta.homeUrl, meta.localUrl!), log, progress);
         const archive = writeFilesArchive(project, plan.files);
         const piece = Math.max(16 * 1024, Math.min(PUSH_CHUNK_BYTES, stage.chunkBytes - 4096));
         log(`Uploading the database (${bytes(db.bytes)})…`);

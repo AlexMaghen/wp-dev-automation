@@ -162,19 +162,27 @@ async function pullWithBridge(options: PullOptions, deps: PullDeps, site: Site, 
     if (fetched.vanished.length) warnings.push(`${count(fetched.vanished.length)} files disappeared from live during the pull.`);
 
     log("Starting DDEV and loading the database (this runs on this Mac: a few minutes for a big site)…");
-    progress.step("loading into DDEV", { network: false });
-    project.ddev(["start", "-y"]);
+    const say = (detail: string) => progress.update({ detail });
+    progress.step("starting DDEV", { network: false });
+    await project.ddevLive(["start", "-y"], say);
     setTablePrefix(project, info.database.tablePrefix);
-    project.syncFiles();
-    project.ddev(["import-db", `--file=${dump}`]);
+    progress.step("syncing files into DDEV", { network: false });
+    await project.ddevLive(["mutagen", "sync"], say).catch(() => {
+      // Mutagen isn't in use: the container sees the files directly.
+    });
+    progress.step("loading the database into DDEV", { network: false });
+    await project.ddevLive(["import-db", `--file=${dump}`], say);
 
     log("Switching addresses to the local copy…");
-    progress.step("switching addresses", { network: false });
-    for (const [from, to] of replacements(site.siteUrl, site.homeUrl, localUrl)) {
-      project.wp("search-replace", from, to, "--all-tables-with-prefix", "--precise", "--quiet");
+    const pairs = replacements(site.siteUrl, site.homeUrl, localUrl);
+    progress.step("switching addresses", { total: pairs.length, unit: "replacements", network: false });
+    for (const [i, [from, to]] of pairs.entries()) {
+      progress.update({ done: i, detail: from });
+      await project.wpLive(["search-replace", from, to, "--all-tables-with-prefix", "--precise", "--quiet"]);
     }
-    project.wp("cache", "flush");
-    project.wp("rewrite", "flush");
+    progress.update({ done: pairs.length, detail: "" });
+    await project.wpLive(["cache", "flush"]);
+    await project.wpLive(["rewrite", "flush"]);
 
     project.write({
       ...meta,

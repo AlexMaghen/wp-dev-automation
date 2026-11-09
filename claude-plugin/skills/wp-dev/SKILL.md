@@ -91,6 +91,9 @@ where the local copy should go**. Then everything happens in this one session.
 
 > What's the live site's address? For example, `https://example.com`.
 
+If the folder's name contains a domain (for example `example.com-local`), offer it instead:
+"What's the live site's address? From the folder name I'd guess `https://example.com`."
+
 Then create the project here: `wpsync init <site-url> --dir .`. It writes the folder's
 `CLAUDE.md`, `.claude/settings.json` (pre-approves `ddev`, `git`, `brew` and the read-only wpsync
 commands; publishing still asks) and `.wpsync.json` marked pending. It contacts nothing. Go
@@ -103,18 +106,31 @@ detect the permission mode, and don't need to.
 `wpsync doctor --local` lists everything at once. Show it as the results table in `guiding.md`.
 Install what's missing, in this order:
 
-- **Needs the developer** (a password or a click, which you never do for them): the Xcode
-  command line tools (`xcode-select --install`), Homebrew (from https://brew.sh), the first
-  launch of OrbStack or Docker Desktop, and `mkcert -install`. Open a Terminal tab with the
-  command ready (see `guiding.md`), and wait with the "Done, check it" dialog.
-- **You can install:** `brew install ddev/ddev/ddev`, `brew install oven-sh/bun/bun`, and Docker.
+- **You can do:** `brew install ddev/ddev/ddev`, `brew install oven-sh/bun/bun`, and Docker.
   If neither Docker app is installed, **ask** "Which Docker app should I install on this Mac?":
   **OrbStack** (Recommended: lighter and faster on a Mac, free for personal use) or **Docker
   Desktop** (the standard one; free for personal use and small companies). Then
   `brew install --cask orbstack` or `brew install --cask docker`.
+  **Docker installed but "not running":** start it yourself (`open -a OrbStack` or
+  `open -a Docker`) and wait up to a minute for `docker info` to succeed. Only a first launch
+  (terms, password) needs the developer; if `docker info` still fails after a minute, a
+  first-launch dialog is waiting for them.
+- **Needs the developer** (a password or a click, which you never do for them): the Xcode
+  command line tools (`xcode-select --install`), Homebrew (from https://brew.sh), the first
+  launch of OrbStack or Docker Desktop, and `mkcert -install`. Open a Terminal tab with the
+  command ready (see `guiding.md`), and wait with the "Done, check it" dialog. When several are
+  missing, list them all in one message and wait once, not once per item.
 
-Run `wpsync doctor --local` again until nothing says FIX. Notes (like mkcert) can wait, but say
-what they mean.
+**mkcert is required** (doctor reports it as FIX until it's set up). The local copy's address is
+`https://…ddev.site`. Without `mkcert -install`, Chrome refuses that address, and over plain
+http the page loads without its styles or images (WordPress links them over https). That looks
+like a broken copy in step 7. So do it here, before the first pull: say it will ask for their
+**Mac's** password, run `mkcert -install` in a Terminal tab, and wait. If it's installed only
+after DDEV has started (resuming an older setup), DDEV is still using its untrusted certificate:
+run `ddev poweroff && ddev start` in the site folder, then ask them to reload the page.
+
+Run `wpsync doctor --local` again until nothing says FIX. Notes can wait, but say what they
+mean.
 
 **Homebrew right after installing it:** on Apple Silicon Macs Homebrew lands in
 `/opt/homebrew`, which isn't on the PATH until the installer's "Next steps" lines are run. doctor
@@ -162,27 +178,44 @@ mode** (Recommended: you guide them to each plugin's test or sandbox setting in 
 wp-admin), or **Leave them as they are** (they accept that the local copy can reach those
 services).
 
+If none of the active plugins is like that, don't ask: say so in one line (naming any that only
+send email, which DDEV catches) and go on.
+
 ### 7. Verify
 
 `wpsync verify` checks pages, wp-admin, permalinks, leftover live addresses, images, and that
-plugins and theme match live. Show the results table. Then look yourself: open live and the
-local copy side by side in the browser (home page and a couple of inner pages) and compare. If
-something differs that you can't explain, describe it and **ask**: **Fix it now**
-(Recommended), or **It's fine, go on**.
+plugins and theme match live. Show the results table.
+
+**Before investigating a failed page check**, ask the page once yourself:
+`curl -s -o /dev/null -w '%{http_code}' <localUrl>/`. If it answers 200, the check probably ran
+while DDEV was still starting (it answers 502 for a moment after `ddev start`): run
+`wpsync verify` once more before digging into logs.
+
+Then look yourself: open live and the local copy side by side in **Chrome** (Claude in Chrome),
+home page and a couple of inner pages, and compare. Don't judge the copy in the app's built-in
+browser pane: it blocks a `*.ddev.site` page's styles, scripts and images
+(`ERR_BLOCKED_BY_CLIENT`), so even a perfect copy looks broken there. If Chrome isn't
+available, check the page with `curl` and ask the developer to look. If something differs that
+you can't explain, describe it and **ask**: **Fix it now** (Recommended), or **It's fine, go
+on**.
 
 Local login: the copy has live's users, so the developer signs in to the local wp-admin with
 their live password.
 
 ### 8. Hand over
 
-Read the site's `CLAUDE.md` now, so its rules apply from here on. Open the local site in the
-browser, finish the checklist, then say:
+Read the site's `CLAUDE.md` now, so its rules apply from here on.
+
+**First, if this site uses Wordfence** (`wpsync status --json` shows `"wordfence": "switched-off"`):
+setup no longer needs the live site, so follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("When wpsync is done") to have the
+developer switch Wordfence's protection back on, wait, and confirm with `wpsync status`. Do
+this before the hand-over line, so the developer's last step is starting work rather than
+another chore.
+
+Then open the local site in Chrome, finish the checklist, and say:
 
 > Local site is ready for us to work on together according to your rules. You can view it at
 > {local domain}. How shall we get started?
 
-with {local domain} from `.wpsync.json`'s `localUrl`.
-
-**Then, if this site uses Wordfence** (`wpsync status --json` shows `"wordfence": "switched-off"`):
-setup no longer needs the live site, so follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("When wpsync is done") to have the
-developer switch Wordfence's protection back on, wait, and confirm with `wpsync status`.
+with {local domain} from `.wpsync.json`'s `localUrl`. Add one line on signing in: the local
+wp-admin takes their live username and password.

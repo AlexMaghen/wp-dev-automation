@@ -355,7 +355,9 @@ In this order:
    - a Docker provider installed **and running** (OrbStack or Docker Desktop; either needs a
      first launch the developer clicks through)
    - Docker's disk allocation (Docker Desktop's virtual disk can fill up during a large import)
-   - DDEV, and `mkcert -install` (trusted HTTPS for the local site)
+   - DDEV, and `mkcert -install` (trusted HTTPS for the local site; required, since DDEV
+     serves local sites over https only once it's set up, and installing it part-way through
+     switches existing local sites from http to https)
    - the `wpsync` binary and its version
 3. **Install what's missing.** Steps that need the developer's password (Homebrew, `mkcert
    -install`, Docker's privileged helper) are hard stops: Claude never types a password, so the

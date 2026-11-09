@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -146,6 +146,39 @@ export class Project {
       throw new WpsyncError("ddev_failed", `ddev ${args.join(" ")} failed: ${detail}`);
     }
     return (result.stdout ?? "").trim();
+  }
+
+  /**
+   * Like ddev(), but without blocking: wpsync keeps printing progress while DDEV works, and
+   * each line DDEV prints becomes the progress detail ("Importing database…").
+   */
+  ddevLive(args: string[], onLine: (line: string) => void = () => {}): Promise<string> {
+    return new Promise((resolvePromise, reject) => {
+      const child = spawn("ddev", args, { cwd: this.dir, stdio: ["ignore", "pipe", "pipe"] });
+      let stdout = "";
+      let stderr = "";
+      const lines = (chunk: Buffer, keep: (text: string) => void) => {
+        const text = chunk.toString("utf8");
+        keep(text);
+        for (const line of text.split(/\r?\n|\r/)) {
+          // Drop terminal colour codes; keep short, readable lines.
+          const plain = line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").trim();
+          if (plain) onLine(plain.length > 80 ? `${plain.slice(0, 77)}…` : plain);
+        }
+      };
+      child.stdout.on("data", (chunk: Buffer) => lines(chunk, (t) => (stdout += t)));
+      child.stderr.on("data", (chunk: Buffer) => lines(chunk, (t) => (stderr += t)));
+      child.on("error", () => reject(new WpsyncError("ddev_missing", "Couldn't run DDEV.", "Install it with: brew install ddev/ddev/ddev")));
+      child.on("close", (code) => {
+        if (code === 0) return resolvePromise(stdout.trim());
+        const detail = (stderr || stdout).trim().split("\n").slice(-3).join(" ");
+        reject(new WpsyncError("ddev_failed", `ddev ${args.join(" ")} failed: ${detail}`));
+      });
+    });
+  }
+
+  wpLive(args: string[], onLine?: (line: string) => void): Promise<string> {
+    return this.ddevLive(["wp", ...args], onLine);
   }
 
   wp(...args: string[]): string {

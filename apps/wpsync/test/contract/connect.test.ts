@@ -165,6 +165,6 @@ describe("wpsync connect", () => {
   });
 
   it("refuses plain HTTP for a real site", async () => {
-    await expectCode(connect({ url: harness().baseUrl }, deps(typed("admin", "x"))), "http_refused");
+    await expectCode(connect({ url: harness().baseUrl.replace(/^https:/, "http:") }, deps(typed("admin", "x"))), "http_refused");
   });
 });
