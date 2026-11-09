@@ -118,3 +118,13 @@ describe("Wordfence", () => {
     expect(() => noteWordfence(other, "https://example.com")).not.toThrow();
   });
 });
+
+describe("plugin version", () => {
+  it("is the same in plugin.json, both package.json files and wpsync --version", () => {
+    const read = (path: string) => JSON.parse(readFileSync(join(repo, path), "utf8")).version as string;
+    const plugin = read("claude-plugin/.claude-plugin/plugin.json");
+    expect(read("claude-plugin/package.json")).toBe(plugin);
+    expect(read("apps/wpsync/package.json")).toBe(plugin);
+    expect(readFileSync(join(repo, "apps/wpsync/src/main.ts"), "utf8")).toContain(`const VERSION = "${plugin}";`);
+  });
+});

@@ -21,6 +21,10 @@ where the developer pastes an Application Password they made themselves.
 - After changing the CLI, the site template or `claude-plugin/rules/`, run `pnpm generate` and
   `pnpm --filter wpsync bundle`: the plugin runs the committed bundle, `claude-plugin/bin/wpsync.mjs`.
 - `claude plugin validate .` checks the marketplace and plugin manifests.
+- **Raise the plugin version for every change that ships** (`claude-plugin/.claude-plugin/plugin.json`,
+  both `package.json` files and `VERSION` in `apps/wpsync/src/main.ts`; a unit test keeps them
+  equal). Claude Code caches plugins by version: with the same number, `claude plugin update`
+  keeps the old copy, which is how everything after 15:28 on 2026-11-08 missed the owner's Mac.
 - Run the CLI with `apps/wpsync/node_modules/.bin/bun apps/wpsync/src/main.ts`; `pnpm --filter
   wpsync build` compiles standalone binaries into `apps/wpsync/dist/`.
 - Changing live (`push`, `rollback`, `finalize`) needs a person to confirm in a macOS dialog

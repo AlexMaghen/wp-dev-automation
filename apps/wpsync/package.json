@@ -1,6 +1,6 @@
 {
   "name": "wpsync",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Copy a live WordPress site into local DDEV and publish it back, with only an admin login.",
   "type": "module",

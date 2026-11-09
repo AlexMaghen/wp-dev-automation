@@ -23,7 +23,7 @@ import { notify } from "./progress";
 import { MacKeychain } from "./secrets";
 import { normalizeUrl } from "./site";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const USAGE = `wpsync ${VERSION}
 

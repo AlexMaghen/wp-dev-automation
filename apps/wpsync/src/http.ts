@@ -68,7 +68,7 @@ export interface HttpResponse {
   text: string;
 }
 
-const USER_AGENT = "wpsync/0.1 (+https://github.com/AlexMaghen/wp-dev-automation)";
+const USER_AGENT = "wpsync/0.2 (+https://github.com/AlexMaghen/wp-dev-automation)";
 const MAX_REDIRECTS = 5;
 
 /** fetch with cookies, manual redirects and a plain-words error when the site can't be reached. */
