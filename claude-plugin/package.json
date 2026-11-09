@@ -1,6 +1,6 @@
 {
   "name": "@wp-dev-automation/claude-plugin",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "The wp-dev Claude Code plugin: skills, rules, and the bundled wpsync CLI in bin/."
 }

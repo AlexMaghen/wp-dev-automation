@@ -152,7 +152,9 @@ dialog in `guiding.md`.
 
 **Wordfence:** if it reports Application Passwords "turned off, most likely by Wordfence", follow
 `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("Before"): the developer switches one setting
-off in wp-admin, and you wait with the "Done, check it" dialog until doctor confirms it. You'll
+off in wp-admin, and you wait with the "Done, check it" dialog until doctor confirms it. Its
+message is fixed: send it **word for word** from wordfence.md, never a paraphrase like "untick
+it in Wordfence's settings". You'll
 remind them to switch it back on in step 8.
 
 ### 4. Connect

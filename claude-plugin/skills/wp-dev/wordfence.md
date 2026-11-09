@@ -20,14 +20,20 @@ steps; `wpsync status --json` also has them in `wordfenceSteps`.
 
 ## Before wpsync works on the site: switch it off
 
-1. **Explain it in one or two sentences:** Wordfence blocks the kind of key wpsync signs in
-   with. The setting only needs to be off while wpsync copies or publishes the site, and you'll
-   remind them to switch it back on afterwards.
-2. **Give the steps in full, exactly as wpsync printed them**, as a numbered list: the link,
-   the menu path (Wordfence → Firewall → All Firewall Options), the Brute Force Protection
-   section, the setting's exact name in quotes, untick, and Save Changes. Never shorten them to
-   a sentence like "untick it in Wordfence's settings": the developer has to find one box on a
-   long page.
+1. **Send this message, word for word.** Don't paraphrase it, shorten it, or fold it into a
+   longer sentence: the developer has to find one box on a long page. Only the part in
+   {braces} changes: what you'll do once it's saved (for example "recheck the other two
+   site-check failures", or "carry on with the pull"). If this Mac isn't fully set up yet, drop
+   the opening "This Mac is set up, but".
+
+   > This Mac is set up, but Wordfence is blocking the application-password sign-in that wpsync
+   > needs. In the live site's Wordfence plugin in admin, go to Wordfence->Firewall, click "All
+   > Firewall Options", and under the Brute Force Protection section uncheck "Disable WordPress
+   > application passwords" and save, and I'll {next step} afterward.
+
+2. After the message, on its own line, give the direct link wpsync printed (the first line of
+   its steps) as a shortcut to the same box. Add that it only needs to stay off while wpsync
+   copies or publishes the site, and that you'll remind them to switch it back on.
 3. **Ask them to tell you when they've saved it, then wait.** Run nothing against the site in
    the meantime.
 4. **Check:** run `wpsync doctor <site-url>`. Application Passwords should now say "available".
@@ -45,9 +51,14 @@ While a publish is waiting for finalize or rollback, the setting must stay off, 
 need it. Say so, and remind them once that publish is settled.
 
 1. Run `wpsync status --json`. If `wordfence` is `"switched-off"`, it's time.
-2. Tell them plainly: "wpsync is done with the live site for now, so please switch Wordfence's
-   protection back on", and give `wordfenceSteps` **in full** as a numbered list, as above
-   (the same page and box, ticking it this time).
+2. **Send this message, word for word**, as above:
+
+   > wpsync is done with the live site for now, so please switch Wordfence's protection back
+   > on. In the live site's Wordfence plugin in admin, go to Wordfence->Firewall, click "All
+   > Firewall Options", and under the Brute Force Protection section check "Disable WordPress
+   > application passwords" again and save, and I'll confirm it's back on.
+
+   Then the direct link on its own line, as above.
 3. **Ask them to tell you when it's saved, then wait.**
 4. **Check:** `wpsync status --json` should now show `"wordfence": "back-on"`. If it still says
    `"switched-off"`, it isn't saved yet: say so and repeat the steps.
