@@ -102,14 +102,16 @@ describe("bridge versions", () => {
 
 describe("confirmation dialogs", () => {
   it("asks for the domain to publish, and a click to roll back or finalize", async () => {
-    const { confirmScript } = await import("../src/confirm-dialog");
-    const push = confirmScript({ action: "push", host: "example.com", summary: 'Files: 3 "quoted"' });
-    expect(push).toContain("default answer");
-    expect(push).toContain("REPLACES the live site example.com");
-    expect(push).toContain('\\"quoted\\"');
-    const rollback = confirmScript({ action: "rollback", host: "example.com", summary: "x" });
-    expect(rollback).toContain('buttons {"Cancel", "Roll back"}');
-    expect(rollback).toContain('default button "Cancel"');
+    const { confirmSpec } = await import("../src/confirm-dialog");
+    const push = confirmSpec({ action: "push", host: "example.com", summary: 'Files: 3 "quoted"' });
+    expect(push.fields).toHaveLength(1);
+    expect(push.heading).toContain("REPLACES the live site example.com");
+    expect(push.info).toEqual([{ label: "Live site", value: "example.com" }]);
+    expect(push.buttons.at(-1)).toBe("Publish");
+    const rollback = confirmSpec({ action: "rollback", host: "example.com", summary: "x" });
+    expect(rollback.fields).toBeUndefined();
+    expect(rollback.buttons).toEqual(["Roll back", "Cancel"]);
+    expect(rollback.buttons.at(-1)).toBe("Cancel");
   });
 });
 

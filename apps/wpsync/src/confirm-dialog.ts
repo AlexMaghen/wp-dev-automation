@@ -1,6 +1,5 @@
-import { execFileSync } from "node:child_process";
-import { DIALOG_GIVE_UP_SECONDS, DIALOG_PRELUDE, GAVE_UP_CHECK } from "./dialog";
 import { WpsyncError } from "./errors";
+import { type DialogSpec, showDialog } from "./mac-dialog";
 import { notify } from "./progress";
 
 /**
@@ -15,44 +14,30 @@ export type ConfirmProvider = (request: { action: "push" | "rollback" | "finaliz
 /** Asks for an Application Password the developer made in their profile (blocked-login fallback). */
 export type ApplicationPasswordProvider = (site: { name: string; homeUrl: string }, suggestedUsername?: string) => Promise<{ username: string; applicationPassword: string }>;
 
-function asString(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-}
-
-function osascript(script: string): string {
-  try {
-    return execFileSync("osascript", ["-"], { input: script, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).replace(/\n$/, "");
-  } catch (error) {
-    const stderr = (error as { stderr?: string }).stderr ?? "";
-    if (/-128/.test(stderr)) throw new WpsyncError("cancelled", "Cancelled in the dialog; nothing was changed.");
-    throw new WpsyncError("dialog_failed", "Couldn't show the confirmation dialog.", "Run wpsync on a Mac where you're logged in to the desktop.");
-  }
-}
-
-/** The AppleScript for a confirmation (exported for tests). */
-export function confirmScript(request: Parameters<ConfirmProvider>[0]): string {
+/** The dialog for a confirmation (exported for tests). */
+export function confirmSpec(request: Parameters<ConfirmProvider>[0]): DialogSpec {
   const summary = request.summary.length > 900 ? `${request.summary.slice(0, 900)}…` : request.summary;
+  const info = [{ label: "Live site", value: request.host }];
   if (request.action === "push") {
-    const text = `Publishing REPLACES the live site ${request.host} with your local copy.\n\n${summary}\n\nTo go ahead, type the live site's domain:`;
-    return [
-      DIALOG_PRELUDE,
-      `set r to (display dialog ${asString(text)} default answer "" with title "wpsync: publish" with icon caution buttons {"Cancel", "Publish"} default button "Publish" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
-      GAVE_UP_CHECK,
-      "text returned of r",
-    ].join("\n");
+    return {
+      heading: `Publishing REPLACES the live site ${request.host} with your local copy.`,
+      message: summary,
+      info,
+      fields: [{ label: "To go ahead, type the live site's domain:" }],
+      buttons: ["Cancel", "Publish"],
+      caution: true,
+    };
   }
   const verb = request.action === "rollback" ? "Roll back" : "Finalize";
-  const text =
+  const heading =
     request.action === "rollback"
-      ? `Put ${request.host} back as it was before the last publish?\n\n${summary}`
-      : `Keep the last publish on ${request.host} and delete the old version saved on the server? After this, rollback is no longer possible.\n\n${summary}`;
-  return [
-    DIALOG_PRELUDE,
-    `set r to (display dialog ${asString(text)} with title "wpsync: ${verb.toLowerCase()}" with icon caution buttons {"Cancel", ${asString(verb)}} default button "Cancel" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
-    GAVE_UP_CHECK,
-    "button returned of r",
-  ].join("\n");
+      ? `Put ${request.host} back as it was before the last publish?`
+      : `Keep the last publish on ${request.host} and delete the old version saved on the server? After this, rollback is no longer possible.`;
+  // Cancel is the default (Return) here: these take one click, so a stray Return mustn't do it.
+  return { heading, message: summary, info, buttons: [verb, "Cancel"], caution: true };
 }
+
+const CANCELLED = "Cancelled in the dialog; nothing was changed.";
 
 /**
  * Whether what the developer typed names the live site: the domain itself, also accepted with
@@ -70,28 +55,29 @@ export function sameHost(typed: string, host: string): boolean {
 
 export const macConfirmDialog: ConfirmProvider = async (request) => {
   notify("wpsync is waiting for you", request.action === "push" ? `Type ${request.host} in the wpsync dialog to publish, or Cancel.` : `Confirm the ${request.action} of ${request.host} in the wpsync dialog.`);
-  const answer = osascript(confirmScript(request)).trim();
-  if (request.action === "push") return sameHost(answer, request.host);
-  return answer.length > 0;
+  const { values } = showDialog(confirmSpec(request), CANCELLED, "confirmation");
+  if (request.action === "push") return sameHost(values[0] ?? "", request.host);
+  return true;
 };
 
 export const macApplicationPasswordDialog: ApplicationPasswordProvider = async (site, suggestedUsername = "") => {
-  const intro = `Enter an admin username and an Application Password for ${site.homeUrl}.\n\nTo make one: in that site's wp-admin, go to Users → Profile → Application Passwords, add one named "wpsync", and copy it.\n\nUsername:`;
   notify("wpsync is waiting for you", `Enter an admin username and Application Password for ${site.homeUrl} in the wpsync dialog.`);
-  const script = [
-    DIALOG_PRELUDE,
-    `set r to (display dialog ${asString(intro)} default answer ${asString(suggestedUsername)} with title "wpsync" buttons {"Cancel", "Next"} default button "Next" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
-    GAVE_UP_CHECK,
-    "set u to text returned of r",
-    `set r to (display dialog ("Application Password for " & u & " at " & ${asString(site.homeUrl)} & ":") default answer "" with hidden answer with title "wpsync" buttons {"Cancel", "Connect"} default button "Connect" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
-    GAVE_UP_CHECK,
-    "set p to text returned of r",
-    "return u & linefeed & p",
-  ].join("\n");
-  const answer = osascript(script);
-  const split = answer.indexOf("\n");
-  const username = answer.slice(0, split).trim();
-  const applicationPassword = answer.slice(split + 1).trim();
-  if (split < 0 || !username || !applicationPassword) throw new WpsyncError("cancelled", "No username or Application Password entered.");
+  const { values } = showDialog(
+    {
+      heading: "Enter an admin username and an Application Password",
+      message: 'To make one: in that site\'s wp-admin, go to Users → Profile → Application Passwords, add one named "wpsync", and copy it.',
+      info: [{ label: "Site", value: site.homeUrl }],
+      fields: [
+        { label: "Username", value: suggestedUsername },
+        { label: "Application Password", secret: true },
+      ],
+      buttons: ["Cancel", "Connect"],
+    },
+    "Sign-in cancelled.",
+    "sign-in",
+  );
+  const username = (values[0] ?? "").trim();
+  const applicationPassword = (values[1] ?? "").trim();
+  if (!username || !applicationPassword) throw new WpsyncError("cancelled", "No username or Application Password entered.");
   return { username, applicationPassword };
 };

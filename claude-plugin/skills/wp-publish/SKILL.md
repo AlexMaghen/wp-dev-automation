@@ -37,7 +37,7 @@ last pull are lost.
    <domain>**, or **Not yet**. Only **Publish <domain>** is a yes.
 4. **Publish:** `wpsync push`, as a long job (`guiding.md`). It shows the same summary in a macOS
    dialog, and only goes ahead when **the developer types the live domain there**. Tell them the
-   dialog is coming, that it may open behind other windows, and that you can't answer it. It then
+   dialog is coming (it comes to the front with the cursor in it), and that you can't answer it. It then
    backs up what will change to `backups/`, uploads, swaps everything in, and checks key pages. If
    the check fails, it puts the old site back by itself and says so.
 5. **Check live yourself:** open the home page and the pages the change touched in the browser,

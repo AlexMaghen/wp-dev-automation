@@ -39,9 +39,10 @@ Around them:
 
 `wpsync connect https://example.com`
 
-1. **Login.** wpsync shows a native macOS dialog (`osascript` with a hidden answer field) asking
-   for the WordPress username and password. The password goes from the dialog straight to the CLI
-   process. It is never printed, logged, stored, or passed through Claude.
+1. **Login.** wpsync shows a native macOS dialog asking for the WordPress username and password
+   together, under the site's address (an AppKit alert run by `osascript -l JavaScript`, in
+   `mac-dialog.ts`: unlike `display dialog` it holds several fields and takes keyboard focus).
+   The password goes from the dialog straight to the CLI process. It is never printed, logged, stored, or passed through Claude.
 2. **Session.** wpsync logs in the way a browser does: it posts `wp-login.php` and keeps the
    cookies. It then gets a REST nonce from core's `admin-ajax.php?action=rest-nonce`.
 3. **Application Password.** It calls `POST /wp-json/wp/v2/users/me/application-passwords`

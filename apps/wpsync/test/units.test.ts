@@ -5,7 +5,8 @@ import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { EMBED_PATH, renderEmbedded } from "../scripts/embed-lib";
 import { bridgeZip } from "../src/bridge-zip";
-import { loginDialogScript } from "../src/dialog";
+import { loginDialogSpec } from "../src/dialog";
+import { dialogScript } from "../src/mac-dialog";
 import { WpsyncError } from "../src/errors";
 import { CookieJar } from "../src/http";
 import { normalizeUrl, siteKey } from "../src/site";
@@ -66,13 +67,21 @@ describe("site addresses", () => {
   });
 });
 
-describe("login dialog script", () => {
-  it("asks for an admin login by the site's address", () => {
-    const script = loginDialogScript("https://example.com", "admin");
-    expect(script).toContain("Enter an admin username and password for https://example.com.");
-    expect(script).toContain('" at " & "https://example.com"');
-    expect(script).toContain('default answer "admin"');
-    expect(script).toContain("with hidden answer");
+describe("login dialog", () => {
+  it("asks for the username and password in one dialog that shows the site", () => {
+    const spec = loginDialogSpec("https://example.com", "admin");
+    expect(spec.info).toEqual([{ label: "Site", value: "https://example.com" }]);
+    expect(spec.fields).toEqual([{ label: "Username", value: "admin" }, { label: "Password", secret: true }]);
+    expect(spec.buttons.at(-1)).toBe("Connect");
+  });
+
+  it("builds a JXA script that takes focus and embeds the text safely", () => {
+    const script = dialogScript({ ...loginDialogSpec("https://example.com"), message: 'a "quote" and \\ and </script>' });
+    expect(script).toContain("NSApplicationActivationPolicyAccessory");
+    expect(script).toContain("activateIgnoringOtherApps(true)");
+    expect(script).toContain('"paste:"');
+    expect(script).toContain("NSSecureTextField");
+    expect(script).toContain(JSON.stringify('a "quote" and \\ and </script>'));
   });
 });
 

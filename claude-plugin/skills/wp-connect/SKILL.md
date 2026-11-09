@@ -23,8 +23,8 @@ revocable key (an Application Password named "wpsync <Mac> <date>", kept in the 
 Keychain), installs its bridge plugin (switched off between runs), and logs out. Never put a
 password in a command or a file.
 
-Say before running it that the dialog is coming, and that it may open behind other windows (look
-for it in the Dock if it doesn't appear).
+Say before running it that a dialog is coming, asking for the username and password in one go.
+It comes to the front with the cursor in it.
 
 ## When Wordfence blocks it
 
