@@ -37,12 +37,13 @@ click.
 
 ## Starting a site
 
-In Claude Code, from any folder, say **"new wp-dev project"**. Claude:
+Make a new, empty folder for the site (for example `~/wp-sites/<domain>/`) and start a Claude
+Code session **in it**, optionally with **Bypass permissions** (the desktop app's
+permission-mode picker, or `claude --dangerously-skip-permissions` in a terminal). Say **"new
+wp-dev project"**. Claude:
 
-1. asks for the site's address and creates its folder (`~/wp-sites/<domain>/`);
-2. asks the developer to **start a new session in that folder**, optionally with **Bypass
-   permissions** (the desktop app's permission-mode picker, or
-   `claude --dangerously-skip-permissions` in a terminal), and say "continue my wp-dev project";
+1. asks for the site's address and sets the folder up;
+2. stays in that session for everything that follows;
 3. checks the Mac (`wpsync doctor --local`) and installs what's missing;
 4. checks the site (`wpsync doctor <url>`);
 5. connects: **a macOS dialog asks for the WordPress admin login**. Type it there, never in the

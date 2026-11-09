@@ -35,19 +35,15 @@ claude plugin marketplace add AlexMaghen/wp-dev-automation
 claude plugin install wp-dev@wp-dev-automation
 ```
 
-**4. Copy a site to your Mac.** In the Claude app's **Code** tab, start a session and say:
+**4. Copy a site to your Mac.** Make a new, empty folder for the site, for example
+`~/wp-sites/example.com`. In the Claude app's **Code** tab, start a new session **in that
+folder** (choose **Bypass permissions** if you don't want to approve each step) and say:
 
 > new wp-dev project
 
-Give it the site's address, and accept or change the folder it suggests. It then asks you to
-start a **new session in that folder** (choose **Bypass permissions** if you don't want to
-approve each step) and say:
-
-> continue my wp-dev project
-
-When a **macOS dialog** asks for the site's admin username and password, type them there, never
-in the chat. Claude installs anything missing, copies the site, checks it, and tells you where
-to see it.
+It asks for the site's address. Later, when a **macOS dialog** asks for the site's admin username
+and password, type them there, never in the chat. Claude installs anything missing, copies the
+site, checks it, and tells you where to see it.
 
 **5. Work, then publish.** In that folder's session:
 
@@ -130,20 +126,15 @@ claude plugin update wp-dev@wp-dev-automation
 
 ## 1. Pull a site down
 
-1. Open the Claude desktop app's **Code** tab and start a session in any folder. Say:
+1. Make a new, empty folder for the site, for example `~/wp-sites/example.com`.
+2. Open the Claude desktop app's **Code** tab and start a new session **in that folder**. To let
+   Claude work without asking each time, set the permission mode to **Bypass permissions** before
+   you start (publishing still waits for you to type the live domain in a dialog). Then say:
 
-   > new wp-dev project for example.com
+   > new wp-dev project
 
-2. Claude asks where the project should live (default `~/wp-sites/example.com/`) and how it
-   should work: **without asking each time** (Bypass permissions) or **asking before
-   commands**. Then it creates the folder.
-3. **Start a new session in that folder.** The site's rules and permissions only load in a
-   session started there. In the desktop app, start a new session, choose the project folder,
-   and if you chose "without asking", set the permission mode to **Bypass permissions** before
-   you start. Then say:
-
-   > continue my wp-dev project
-
+3. Claude asks for the live site's address and sets the folder up. (Said in a folder that's
+   already in use, like the Desktop, it explains how to start in a new folder instead.)
 4. Claude checks your Mac and the site, then installs what's missing. Then wpsync asks for a
    WordPress **administrator's** username and password in a **macOS dialog**. Type them there,
    never in the chat. The dialog may open behind other windows.

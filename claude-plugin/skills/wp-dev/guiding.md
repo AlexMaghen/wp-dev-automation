@@ -35,15 +35,14 @@ project"), show the full list again, with the finished steps already ticked.
 
 **Setup** (wp-dev skill, phase 1):
 
-1. Choose the site and its folder
-2. Start a session in that folder
-3. Check this Mac and install what's missing
-4. Check the live site
-5. Connect to the live site
-6. Copy the live site to this Mac
-7. Make the copy safe to run
-8. Check the copy works
-9. Hand over
+1. Name the live site
+2. Check this Mac and install what's missing
+3. Check the live site
+4. Connect to the live site
+5. Copy the live site to this Mac
+6. Make the copy safe to run
+7. Check the copy works
+8. Hand over
 
 **Publishing** (wp-publish skill):
 

@@ -3,6 +3,7 @@
  * wpsync: copy a live WordPress site into local DDEV and publish it back, using only an
  * administrator login. See docs/design.md.
  */
+import { resolve } from "node:path";
 import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
 import { connect, disconnect } from "./connect";
 import { allOk, checkLocal, checkSite, formatChecks } from "./doctor";
@@ -176,9 +177,14 @@ function runInit(args: Parsed): void {
   const url = args.positional[0];
   if (!url) throw new UsageError("init needs the site's address, e.g. wpsync init https://example.com");
   const result = init(url, { dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http") });
+  const here = resolve(result.project.dir) === resolve(process.cwd());
   console.log(`${result.created ? "Created" : "Already set up"}: ${result.project.dir}
-  Site: ${result.homeUrl} (setup pending: nothing has been pulled yet)
-
+  Site: ${result.homeUrl} (setup pending: nothing has been pulled yet)`);
+  if (here) {
+    console.log(`\nNext: wpsync doctor --local, then wpsync doctor ${result.homeUrl}`);
+    return;
+  }
+  console.log(`
 Next: start a new Claude Code session in that folder, so its CLAUDE.md and permissions load.
   Desktop app: start a new session on the folder; optionally set the permission mode to
                Bypass permissions.

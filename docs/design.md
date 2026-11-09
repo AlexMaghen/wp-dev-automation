@@ -253,23 +253,16 @@ access to the repo.
   them into each site's `CLAUDE.md`.
 - **Install helper:** the plugin's setup skill installs `wpsync`, DDEV and Docker (OrbStack or Docker Desktop) with
   Homebrew where missing, and says when a password or click is needed.
-- **Start gate (before any setup):** two things only the developer can do, so the skill stops
-  and asks for them before anything else happens:
-  1. **Session folder.** A Claude Code session's folder is fixed when it starts, and the site's
-     `CLAUDE.md` and `.claude/settings.json` load only in a session started there. The skill asks
-     for the site URL first (no side effects), proposes the folder (default
-     `~/wp-sites/<domain>/`, or one the developer names), creates it, and writes
-     `.claude/settings.json` (pre-approves `ddev`, `wpsync` except push/rollback/finalize, `git`,
-     `brew`) and a `.wpsync.json` marked `setup: pending`.
-  2. **Permission mode.** Claude can't change its own mode. The skill tells the developer to start
-     a new session in that folder and, if they want, choose Bypass permissions: in the desktop
-     app, a new session on that folder with the permission-mode picker set to Bypass permissions;
-     in a terminal, `cd <folder> && claude --dangerously-skip-permissions`. Without it, the
-     pre-approved commands keep prompts rare.
-  Then the developer says "continue wp-dev". The skill sees it's in the right folder with
-  `setup: pending` and goes on to prerequisites, connect, pull and verify. If it's invoked in any
-  other folder, it repeats the gate instead of starting. The skill can't detect the permission
-  mode, so it asks once and moves on either way.
+- **Start gate (before any setup):** a Claude Code session's folder is fixed when it starts, and
+  Claude can't change its own permission mode, so both are chosen by starting the session: the
+  developer starts a new session **in a new, empty folder** for the site (optionally with Bypass
+  permissions) and says "new wp-dev project". The skill checks the folder is empty (only
+  `.DS_Store` or `.claude` allowed); anywhere else (Desktop, home, another project) it explains
+  how to start in a new folder and stops. In the right folder it asks only for the site's
+  address, runs `wpsync init <url> --dir .` (`CLAUDE.md`, `.claude/settings.json`,
+  `.wpsync.json` marked pending; contacts nothing), and carries on in the same session with
+  prerequisites, connect, pull and verify. (Revised 2026-11-08 after the first run: choosing
+  the folder inside a session meant starting a second one, which felt like starting over.)
 
 ## 11. Repository layout
 

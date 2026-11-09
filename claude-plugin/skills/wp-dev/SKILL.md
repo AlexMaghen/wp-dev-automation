@@ -55,7 +55,8 @@ Run `wpsync status --json` in the current folder and go by its `phase`:
 | phase | Do |
 | --- | --- |
 | `no-project` | Phase 1 from step 1 (the start gate) |
-| `start-gate`, `connect`, `pull` | Phase 1 from step 2 (it skips what's done) |
+| `start-gate` (folder made in an earlier session) | Phase 1 from step 2 |
+| `connect`, `pull` | Phase 1 from step 2 (it skips what's done) |
 | `work` | Phase 2: the `wp-work` skill for changes, `wp-pull` to refresh, `wp-publish` to go live |
 | `publish-pending` | The last publish is waiting for finalize or rollback: see `wp-publish` |
 
@@ -67,44 +68,38 @@ with finished steps ticked, and start a "Setup" chapter.
 
 ## Phase 1: set up the local copy
 
-### 1. Start gate: two things only the developer can do
+### 1. Start gate: the right folder, then the address
 
-**Your first message is short and ends with the one question.** Don't list rules, versions or
-what's installed; don't repeat the status. Say it like this:
+A session's folder is fixed when it starts, so the developer **starts the session in the folder
+where the local copy should go**. Then everything happens in this one session.
 
-> Let's set up a local copy of your WordPress site. It goes in two short parts: first I make a
-> folder for the site, then you open a new Claude Code session in that folder and we carry on
-> there. You won't repeat anything: the new session picks up where this one stops.
->
+**Is this session in a usable folder?** Look at the current folder (`ls -A`):
+
+- **Empty** (or holding only `.DS_Store` or `.claude`): it's the site's new folder. Go on below.
+- **Anything else** (Desktop, the home folder, another project): don't set up here. Send this,
+  and stop:
+
+  > To set up a site, start a new Claude Code session in the folder where you want its local
+  > copy: a new, empty folder, for example `~/wp-sites/example.com`.
+  >
+  > - **Desktop app:** start a new session, choose (or create) that folder, and set the
+  >   permission mode to **Bypass permissions** if you'd rather not approve each step.
+  >   (Publishing to the live site always waits for you to type its domain in a dialog.)
+  > - **Terminal:** `mkdir -p ~/wp-sites/example.com && cd ~/wp-sites/example.com && claude`
+  >   (add `--dangerously-skip-permissions` to skip approvals).
+  >
+  > Then say **"new wp-dev project"** there.
+
+**In the new folder,** ask one thing, the live site's address, in one short line:
+
 > What's the live site's address? For example, `https://example.com`.
 
-1. Ask in the chat for the **site's address** (only that, nothing else yet).
-2. **Ask** (one dialog, two questions):
-   - "Where should the project for <domain> live?" Choices: `~/wp-sites/<domain>/`
-     (Recommended), and "Somewhere else" (they type the folder under "Other").
-   - "How should I work in the new session for <domain>?" Choices: **Without asking each
-     time** (Recommended: Bypass permissions; publishing still needs them to type the live domain
-     in a macOS dialog), and **Ask before commands** (fewer surprises, more clicks; the common
-     commands are pre-approved anyway).
-3. Create the folder: `wpsync init <site-url> --dir <folder>`. It writes the folder's `CLAUDE.md`,
-   `.claude/settings.json` (pre-approves `ddev`, `git`, `brew` and the read-only wpsync
-   commands; publishing still asks) and `.wpsync.json` marked pending. It contacts nothing.
-4. Tell them to **start a new Claude Code session in that folder**: a session's folder is fixed
-   when it starts, and the site's rules and permissions load only in a session started there.
-   You can't change your own permission mode, so give the steps for what they chose:
-   - **Desktop app:** start a new session on the folder; for "without asking", set its
-     permission mode to **Bypass permissions** before starting.
-   - **Terminal:** `cd <folder> && claude` (for "without asking":
-     `claude --dangerously-skip-permissions`).
-
-   Then they say **"continue my wp-dev project"** there. Say plainly that this **won't start
-   over**: the new session sees the folder is already set up and goes straight on to checking
-   the Mac. Stop here.
-
-If you're in a folder that isn't this site's project, repeat the gate instead of setting up
-somewhere else. You can't detect the permission mode. The first time you resume in the new
-folder, **ask** once: "Did you start this session with Bypass permissions?" (**Yes**, **No, ask
-me first**), then go on either way.
+Then create the project here: `wpsync init <site-url> --dir .`. It writes the folder's
+`CLAUDE.md`, `.claude/settings.json` (pre-approves `ddev`, `git`, `brew` and the read-only wpsync
+commands; publishing still asks) and `.wpsync.json` marked pending. It contacts nothing. Go
+straight on to step 2. Those settings take effect from the next session in this folder; if you
+aren't in Bypass permissions, this session may ask a little more often meanwhile. You can't
+detect the permission mode, and don't need to.
 
 ### 2. Check this Mac
 
