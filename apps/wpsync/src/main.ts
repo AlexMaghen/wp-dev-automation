@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
 import { connect, disconnect } from "./connect";
 import { allOk, checkLocal, checkSite, formatChecks } from "./doctor";
+import { destroy } from "./destroy";
 import { newProject } from "./new-project";
 import { status } from "./status";
 import { verify } from "./verify";
@@ -16,7 +17,7 @@ import { bytes, count } from "./format";
 import { init, updateProjectRules } from "./local-commands";
 import { pull } from "./pull";
 import { describePlan, finalize, push, rollback } from "./push";
-import { macApplicationPasswordDialog, macConfirmDialog } from "./confirm-dialog";
+import { macApplicationPasswordDialog, macConfirmDialog, macDestroyDialog } from "./confirm-dialog";
 import { noteWordfence } from "./project";
 import { notify } from "./progress";
 import { MacKeychain } from "./secrets";
@@ -53,6 +54,11 @@ Usage:
 
   wpsync disconnect <site-url>
       Remove the bridge from the site and revoke wpsync's key.
+
+  wpsync destroy [--dir <folder>]
+      Delete the whole local copy: its DDEV project (containers, database) and its folder
+      (files, git history, backups/). Confirmed in three macOS dialogs, the last asking you
+      to type the site's domain. The live site and wpsync's connection are not touched.
 
   wpsync pull <site-url> [--dir <folder>] [--name <ddev-name>] [--overwrite-code]
       Copy the live site into a local DDEV project (default folder:
@@ -310,6 +316,12 @@ async function runDisconnect(args: Parsed): Promise<void> {
   Keychain       forgotten`);
 }
 
+async function runDestroy(args: Parsed): Promise<void> {
+  const result = await destroy({ dir: stringFlag(args, "dir"), log: (line) => console.log(line) }, { confirm: macDestroyDialog });
+  console.log(`Deleted the local copy of ${result.host} (${result.dir}${result.ddevDeleted ? " and its DDEV project" : ""}).
+The live site is untouched. To also remove wpsync from it: wpsync disconnect ${result.homeUrl}`);
+}
+
 /** Commands long enough that their end deserves a notification. */
 const LONG_COMMANDS = new Set(["pull", "push", "rollback", "finalize", "new"]);
 
@@ -345,6 +357,9 @@ async function main(argv: string[]): Promise<number> {
         return await runVerify(args);
       case "disconnect":
         await runDisconnect(args);
+        return 0;
+      case "destroy":
+        await runDestroy(args);
         return 0;
       case "init":
         runInit(args);

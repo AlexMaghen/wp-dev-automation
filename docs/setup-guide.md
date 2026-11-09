@@ -71,3 +71,6 @@ project".
   partway (a closed laptop), run `wpsync rollback` in the site's folder.
 - The bridge plugin wpsync installs on the site switches itself off within two hours, whatever
   happens. `wpsync disconnect` removes it and revokes wpsync's key.
+- **Done with a local copy:** "delete the local copy" (or `wpsync destroy` in its folder)
+  removes its DDEV project, database and folder. Three macOS dialogs confirm it first, the
+  last asking you to type the domain. The live site isn't touched.

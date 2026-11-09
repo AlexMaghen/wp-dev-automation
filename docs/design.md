@@ -202,6 +202,7 @@ push interrupted mid-way is undone with `wpsync rollback`.
 | `wpsync status [--json]` | Where the project stands (phase, connection, last pull and push, DDEV), for the `wp-dev` skill |
 | `wpsync verify` | The local copy works: pages, wp-admin, permalinks, no live URLs left, images, plugins and theme match live |
 | `wpsync disconnect` | Section 4 |
+| `wpsync destroy` | Delete the whole local copy: `ddev delete --omit-snapshot` (containers, database and Mutagen volumes), then the folder. Three separate macOS confirmations, the last asking for the domain to be typed; no flag skips them. Touches nothing on live or in the Keychain. |
 | `wpsync update-rules` | Refresh the WordPress-native rules in the project's `CLAUDE.md` from the installed plugin |
 
 Each site project has `.wpsync.json` (site URL, local URL, last pull/push times, bridge version;

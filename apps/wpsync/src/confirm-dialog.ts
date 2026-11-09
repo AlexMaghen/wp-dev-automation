@@ -1,3 +1,4 @@
+import type { DestroyConfirmProvider, DestroyRequest } from "./destroy";
 import { WpsyncError } from "./errors";
 import { type DialogSpec, showDialog } from "./mac-dialog";
 import { notify } from "./progress";
@@ -57,6 +58,49 @@ export const macConfirmDialog: ConfirmProvider = async (request) => {
   notify("wpsync is waiting for you", request.action === "push" ? `Type ${request.host} in the wpsync dialog to publish, or Cancel.` : `Confirm the ${request.action} of ${request.host} in the wpsync dialog.`);
   const { values } = showDialog(confirmSpec(request), CANCELLED, "confirmation");
   if (request.action === "push") return sameHost(values[0] ?? "", request.host);
+  return true;
+};
+
+/**
+ * Each of `wpsync destroy`'s three confirmations (exported for tests). Each is its own dialog,
+ * with Cancel as the default button (last in the list), so a stray Return never deletes
+ * anything; the third asks for the site's domain to be typed.
+ */
+export function destroySpec(request: DestroyRequest, step: 1 | 2 | 3): DialogSpec {
+  const summary = request.summary.length > 900 ? `${request.summary.slice(0, 900)}…` : request.summary;
+  const info = [{ label: "Site", value: request.host }];
+  if (step === 3) {
+    return {
+      heading: `Last check (3 of 3): delete the local copy of ${request.host} now?`,
+      message: "The live site is not touched.",
+      info,
+      fields: [{ label: "To delete it, type the site's domain:" }],
+      buttons: ["Delete", "Cancel"],
+      caution: true,
+    };
+  }
+  if (step === 1) {
+    return {
+      heading: `Delete the whole local copy of ${request.host} from this Mac? (1 of 3)`,
+      message: `${summary}\n\nThe live site, and wpsync's connection to it, are not touched.`,
+      info,
+      buttons: ["Continue", "Cancel"],
+      caution: true,
+    };
+  }
+  return {
+    heading: "Are you sure? This can't be undone. (2 of 3)",
+    message: `The local files, database and git history of ${request.host} will be gone. Anything you haven't published to live is lost.`,
+    info,
+    buttons: ["Yes, delete it", "Cancel"],
+    caution: true,
+  };
+}
+
+export const macDestroyDialog: DestroyConfirmProvider = async (request, step) => {
+  if (step === 1) notify("wpsync is waiting for you", `Confirm deleting the local copy of ${request.host} in the wpsync dialogs, or Cancel.`);
+  const { values } = showDialog(destroySpec(request, step), "Cancelled in the dialog; nothing was deleted.", "confirmation");
+  if (step === 3) return sameHost(values[0] ?? "", request.host);
   return true;
 };
 
