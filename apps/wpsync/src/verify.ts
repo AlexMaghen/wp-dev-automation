@@ -20,6 +20,9 @@ export async function verify(options: { dir?: string } = {}): Promise<Check[]> {
   project.ddev(["start", "-y"]);
 
   const base = meta.localUrl.replace(/^https:/, "http:");
+  // Right after `ddev start`, DDEV's router answers 502 for a second or so; wait it out so the
+  // page checks below test the site, not the router warming up.
+  await waitUntilServing(() => http(`${base}/`).then((r) => r.status));
   const checks: Check[] = [];
   const page = async (id: string, label: string, url: string) => {
     const response = await http(url).catch(() => null);
@@ -119,4 +122,25 @@ export async function verify(options: { dir?: string } = {}): Promise<Check[]> {
     fix: "Fix the error shown, then run wpsync verify again.",
   });
   return checks;
+}
+
+/** Statuses that mean "not up yet" (no answer, or DDEV's router still waiting for the web container). */
+const NOT_READY = new Set([0, 502, 503, 504]);
+
+/**
+ * Polls `probe` (which returns an HTTP status) until it gives something other than no answer or
+ * 502/503/504, or `timeoutMs` passes. Returns the last status; never throws, so the page checks
+ * still run and report what they see if the site never comes up.
+ */
+export async function waitUntilServing(
+  probe: () => Promise<number>,
+  options: { timeoutMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void>; now?: () => number } = {},
+): Promise<number> {
+  const { timeoutMs = 30_000, intervalMs = 500, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), now = Date.now } = options;
+  const deadline = now() + timeoutMs;
+  for (;;) {
+    const status = await probe().catch(() => 0);
+    if (!NOT_READY.has(status) || now() >= deadline) return status;
+    await sleep(intervalMs);
+  }
 }

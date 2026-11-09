@@ -9,6 +9,7 @@ import { loginDialogScript } from "../src/dialog";
 import { WpsyncError } from "../src/errors";
 import { CookieJar } from "../src/http";
 import { normalizeUrl, siteKey } from "../src/site";
+import { waitUntilServing } from "../src/verify";
 
 const app = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -72,5 +73,36 @@ describe("login dialog script", () => {
     expect(script).toContain('" at " & "https://example.com"');
     expect(script).toContain('default answer "admin"');
     expect(script).toContain("with hidden answer");
+  });
+});
+
+describe("waitUntilServing", () => {
+  const clock = () => {
+    let t = 0;
+    return { now: () => t, sleep: async (ms: number) => void (t += ms) };
+  };
+
+  it("waits out DDEV's 502s right after ddev start", async () => {
+    const statuses = [502, 0, 503, 200, 200];
+    let calls = 0;
+    const status = await waitUntilServing(async () => statuses[calls++]!, clock());
+    expect(status).toBe(200);
+    expect(calls).toBe(4);
+  });
+
+  it("returns at once for other statuses, errors included", async () => {
+    let calls = 0;
+    expect(await waitUntilServing(async () => (calls++, 500), clock())).toBe(500);
+    expect(calls).toBe(1);
+  });
+
+  it("gives up after the timeout without throwing", async () => {
+    let calls = 0;
+    const status = await waitUntilServing(async () => {
+      calls++;
+      throw new Error("refused");
+    }, { ...clock(), timeoutMs: 2_000, intervalMs: 500 });
+    expect(status).toBe(0);
+    expect(calls).toBe(5);
   });
 });
