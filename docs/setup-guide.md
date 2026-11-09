@@ -14,8 +14,8 @@ Claude Code. About 30 minutes the first time, most of it installs.
 
 ## What the developer does once
 
-1. **Install Claude Code** (the desktop app from https://claude.ai/download, or the terminal
-   version) and sign in.
+1. **Install the Claude desktop app** from https://claude.ai/download and sign in. wp-dev runs
+   in its **Code** tab.
 2. **Let git reach the private repo:** install the GitHub CLI (`brew install gh`, or from
    https://cli.github.com), then run `gh auth login` and follow its steps. Accept the
    collaborator invitation from the email GitHub sent.
@@ -39,7 +39,7 @@ click.
 
 Make a new, empty folder for the site (for example `~/wp-sites/<domain>/`) and start a Claude
 Code session **in it**, optionally with **Bypass permissions** (the desktop app's
-permission-mode picker, or `claude --dangerously-skip-permissions` in a terminal). Say **"new
+permission-mode picker). Say **"new
 wp-dev project"**. Claude:
 
 1. asks for the site's address and sets the folder up;

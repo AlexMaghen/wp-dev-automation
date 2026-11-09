@@ -108,8 +108,7 @@ You need a Mac, the Claude desktop app, and read access to this private reposito
 
    Or, once the marketplace is added: in the desktop app's **Code** tab, click **+** next to
    the prompt box, choose **Add plugins** (or **Plugins → Browse plugins**), and pick
-   **wp-dev**. Plugins are shared between the desktop app and the terminal, and work in every
-   folder.
+   **wp-dev**. Installed plugins work in every folder.
 3. That's all. Docker (OrbStack or Docker Desktop), DDEV, Bun and Homebrew get checked and
    installed during the first pull. Claude does what it can, and opens a Terminal tab for the
    few steps that need your Mac password.

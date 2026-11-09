@@ -13,7 +13,7 @@ happens next**, and **when it's their turn**.
 
 ## The tools, and what to use when none is there
 
-| Use | For | Without it (for example in a terminal session) |
+| Use | For | If the app doesn't offer it |
 | --- | --- | --- |
 | **Progress checklist** (the app's task list) | Each phase's steps, ticked off as they finish | A short "Step 3 of 8: check the site" line at the start of each step |
 | **Question dialog** (`AskUserQuestion`) | Every decision, and every wait for the developer | The same question in the chat, with the choices as a numbered list |
