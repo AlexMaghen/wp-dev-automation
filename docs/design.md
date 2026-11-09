@@ -391,8 +391,8 @@ In this order:
     - active plugins and theme match live
     - a side-by-side screenshot of live and local, checked in the browser
 11. **Hand over.** The skill reads the site's `CLAUDE.md` into the conversation so the rules apply
-    now, and says: "Local site is ready for us to work on together according to your rules. You
-    can view it at {local domain}. How shall we get started?"
+    now, and ends setup with, in bold and last: "The local copy of the site is ready at
+    https://{local site domain}. Check it and then tell me changes you'd like to start making."
 
 ### 14.5 Phase 2: work on the local copy
 

@@ -212,10 +212,12 @@ developer switch Wordfence's protection back on, wait, and confirm with `wpsync 
 this before the hand-over line, so the developer's last step is starting work rather than
 another chore.
 
-Then open the local site in Chrome, finish the checklist, and say:
+Then open the local site in Chrome and finish the checklist. **End setup with exactly this, in
+bold, on its own, as the last thing in your message** (nothing after it; any other notes, such
+as signing in, go before it):
 
-> Local site is ready for us to work on together according to your rules. You can view it at
-> {local domain}. How shall we get started?
+> **The local copy of the site is ready at https://{local site domain}. Check it and then tell
+> me changes you'd like to start making.**
 
-with {local domain} from `.wpsync.json`'s `localUrl`. Add one line on signing in: the local
-wp-admin takes their live username and password.
+with `https://{local site domain}` replaced by `.wpsync.json`'s `localUrl`. Just before it, one
+line on signing in: the local wp-admin takes their live username and password.
