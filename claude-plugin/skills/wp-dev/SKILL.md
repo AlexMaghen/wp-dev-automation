@@ -82,13 +82,10 @@ where the local copy should go**. Then everything happens in this one session.
   > To set up a site, start a new Claude Code session in the folder where you want its local
   > copy: a new, empty folder, for example `~/wp-sites/example.com`.
   >
-  > - **Desktop app:** start a new session, choose (or create) that folder, and set the
-  >   permission mode to **Bypass permissions** if you'd rather not approve each step.
-  >   (Publishing to the live site always waits for you to type its domain in a dialog.)
-  > - **Terminal:** `mkdir -p ~/wp-sites/example.com && cd ~/wp-sites/example.com && claude`
-  >   (add `--dangerously-skip-permissions` to skip approvals).
-  >
-  > Then say **"new wp-dev project"** there.
+  > Start a new session, choose (or create) that folder, and set the permission mode to
+  > **Bypass permissions** if you'd rather not approve each step. (Publishing to the live site
+  > always waits for you to type its domain in a dialog.) Then say **"new wp-dev project"**
+  > there.
 
 **In the new folder,** ask one thing, the live site's address, in one short line:
 
