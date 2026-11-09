@@ -23,7 +23,11 @@ steps; `wpsync status --json` also has them in `wordfenceSteps`.
 1. **Explain it in one or two sentences:** Wordfence blocks the kind of key wpsync signs in
    with. The setting only needs to be off while wpsync copies or publishes the site, and you'll
    remind them to switch it back on afterwards.
-2. **Give the steps exactly as wpsync printed them**, as a numbered list, link included.
+2. **Give the steps in full, exactly as wpsync printed them**, as a numbered list: the link,
+   the menu path (Wordfence → Firewall → All Firewall Options), the Brute Force Protection
+   section, the setting's exact name in quotes, untick, and Save Changes. Never shorten them to
+   a sentence like "untick it in Wordfence's settings": the developer has to find one box on a
+   long page.
 3. **Ask them to tell you when they've saved it, then wait.** Run nothing against the site in
    the meantime.
 4. **Check:** run `wpsync doctor <site-url>`. Application Passwords should now say "available".
@@ -42,8 +46,8 @@ need it. Say so, and remind them once that publish is settled.
 
 1. Run `wpsync status --json`. If `wordfence` is `"switched-off"`, it's time.
 2. Tell them plainly: "wpsync is done with the live site for now, so please switch Wordfence's
-   protection back on", and give `wordfenceSteps` as a numbered list (the same page, ticking the
-   box this time).
+   protection back on", and give `wordfenceSteps` **in full** as a numbered list, as above
+   (the same page and box, ticking it this time).
 3. **Ask them to tell you when it's saved, then wait.**
 4. **Check:** `wpsync status --json` should now show `"wordfence": "back-on"`. If it still says
    `"switched-off"`, it isn't saved yet: say so and repeat the steps.

@@ -101,8 +101,9 @@ describe("Wordfence", () => {
     const { wordfenceSteps, wordfenceOptionUrl } = await import("../src/doctor");
     const off = wordfenceSteps("https://example.com", false);
     expect(off).toContain(wordfenceOptionUrl("https://example.com"));
-    expect(off).toContain("Switch it off (unticked)");
-    expect(wordfenceSteps("https://example.com", true)).toContain("Switch it back on (ticked)");
+    expect(off).toContain("Untick it");
+    expect(off).toContain("Wordfence → Firewall");
+    expect(wordfenceSteps("https://example.com", true)).toContain("Tick it, to switch the protection back on");
   });
 
   it("notes in the site's project that the setting had to be switched off, once", async () => {

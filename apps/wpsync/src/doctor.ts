@@ -42,9 +42,10 @@ export interface Check {
 export function wordfenceSteps(siteUrl: string, turnOn: boolean): string {
   return [
     `1. Open ${wordfenceOptionUrl(siteUrl)} (sign in to wp-admin if it asks).`,
-    '2. The page jumps to "Disable WordPress application passwords", under Brute Force Protection.',
-    `3. ${turnOn ? "Switch it back on (ticked)" : "Switch it off (unticked)"}.`,
-    "4. Click Save Changes at the top of the page.",
+    "   Or by menu: in wp-admin's left sidebar, Wordfence → Firewall, then click All Firewall Options at the top.",
+    '2. In the Brute Force Protection section (the link jumps straight there), find "Disable WordPress application passwords".',
+    `3. ${turnOn ? "Tick it, to switch the protection back on" : "Untick it"}.`,
+    "4. Click Save Changes at the top right of the page.",
   ].join("\n");
 }
 
