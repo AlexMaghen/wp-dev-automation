@@ -1,7 +1,7 @@
 {
   "name": "wp-dev",
   "description": "Work on live WordPress sites locally: copy a site into DDEV with only an admin login, change it while keeping it a normal wp-admin-editable WordPress site, and publish it back.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Alex Maghen"
   }

@@ -217,25 +217,63 @@ async function connectWithApplicationPassword(
   return { site, info, bridge: "already-installed", connection };
 }
 
+/** What removing wpsync from a site did. */
+export interface DisconnectResult {
+  bridgeRemoved: boolean;
+  keyRevoked: boolean;
+  homeUrl: string;
+}
+
+/** A checked connection, ready to be removed (`wpsync destroy` checks first, removes after its dialogs). */
+export interface PreparedDisconnect {
+  homeUrl: string;
+  remove(): Promise<DisconnectResult>;
+}
+
+/**
+ * Checks wpsync can still sign in to the site with its saved key, without changing anything.
+ * Returns null when wpsync has no key for the site (nothing to remove). Throws, with the fix, when
+ * the site can't be reached, Wordfence blocks Application Passwords, or the key stopped working.
+ */
+export async function prepareDisconnect(
+  options: { url: string; allowHttp?: boolean },
+  deps: { store: SecretStore },
+): Promise<PreparedDisconnect | null> {
+  const site = await discoverSite(options.url, { allowHttp: options.allowHttp });
+  const key = siteKey(site.homeUrl);
+  const connection = await deps.store.get(key);
+  if (!connection) return null;
+  await requireApplicationPasswords(site);
+  const rest = new RestClient(site, connection.username, connection.applicationPassword);
+  const me = await rest.get("/wp/v2/users/me", { context: "edit" });
+  if (me.status === 401 || me.status === 403) {
+    throw new WpsyncError(
+      "key_rejected",
+      `${site.homeUrl} no longer accepts wpsync's key (HTTP ${me.status}), so wpsync can't remove itself from the site.`,
+      `Run wpsync connect ${site.homeUrl} to make a new key, then try again.`,
+    );
+  }
+  return {
+    homeUrl: site.homeUrl,
+    remove: async () => {
+      await rest.setBridgeActive(false).catch(() => {});
+      const removed = await rest.call("DELETE", BRIDGE_PLUGIN_ROUTE);
+      const revoked =
+        connection.applicationPasswordUuid === "unknown"
+          ? { status: 0 }
+          : await rest.call("DELETE", `/wp/v2/users/me/application-passwords/${connection.applicationPasswordUuid}`);
+      await deps.store.delete(key);
+      return { bridgeRemoved: removed.status === 200, keyRevoked: revoked.status === 200, homeUrl: site.homeUrl };
+    },
+  };
+}
+
 /**
  * `wpsync disconnect`: remove the bridge from the site, revoke wpsync's key, and forget it.
  * Reports what it couldn't do (WordPress may not let a key revoke itself).
  */
-export async function disconnect(
-  options: { url: string; allowHttp?: boolean },
-  deps: { store: SecretStore },
-): Promise<{ bridgeRemoved: boolean; keyRevoked: boolean; homeUrl: string }> {
-  const site = await discoverSite(options.url, { allowHttp: options.allowHttp });
-  const key = siteKey(site.homeUrl);
-  const connection = await deps.store.get(key);
-  if (!connection) throw new WpsyncError("not_connected", `wpsync isn't connected to ${site.homeUrl}.`);
-  const rest = new RestClient(site, connection.username, connection.applicationPassword);
-  await rest.setBridgeActive(false).catch(() => {});
-  const removed = await rest.call("DELETE", BRIDGE_PLUGIN_ROUTE);
-  const revoked =
-    connection.applicationPasswordUuid === "unknown"
-      ? { status: 0 }
-      : await rest.call("DELETE", `/wp/v2/users/me/application-passwords/${connection.applicationPasswordUuid}`);
-  await deps.store.delete(key);
-  return { bridgeRemoved: removed.status === 200, keyRevoked: revoked.status === 200, homeUrl: site.homeUrl };
+export async function disconnect(options: { url: string; allowHttp?: boolean }, deps: { store: SecretStore }): Promise<DisconnectResult> {
+  const prepared = await prepareDisconnect(options, deps);
+  if (!prepared) throw new WpsyncError("not_connected", `wpsync isn't connected to ${options.url}.`);
+  return prepared.remove();
 }

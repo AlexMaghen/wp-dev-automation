@@ -229,15 +229,27 @@ line on signing in: the local wp-admin takes their live username and password.
 
 Only when the developer asks for it in words. `wpsync destroy` (in the site's folder, or with
 `--dir`) deletes the DDEV project (containers, local database) and the whole folder (files, git
-history, `backups/`). It can't be undone. It never touches the live site.
+history, `backups/`), and removes wpsync from the live site: the bridge plugin, wpsync's key
+(Application Password) and its Keychain entry. It never touches the live site's content. It
+can't be undone.
 
 1. First run `git status --short` in the folder. If anything is uncommitted, or work was done
    since the last publish, say so in one line: it will be lost.
-2. Tell the developer that three macOS dialogs are about to appear, and that the last one asks
+2. Run `wpsync status --json`. If it has a `wordfence` field and it isn't `"switched-off"`,
+   wpsync can't sign in to remove itself from live: follow
+   `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md` ("Before") first. If `destroy` itself stops
+   with the Wordfence message, do the same, then run it again.
+3. Tell the developer that three macOS dialogs are about to appear, and that the last one asks
    them to type the site's domain. Then run `wpsync destroy`. You never answer the dialogs and
    never look for a way around them.
-3. If it says "Not confirmed" or "Cancelled", nothing was deleted: say so and stop.
-4. When it's done, the session's folder no longer exists, so suggest closing this session. Ask
-   whether they also want wpsync removed from the live site (`wpsync disconnect <site-url>`,
-   which deletes the bridge plugin and revokes wpsync's key). Only run it on their yes, since it
-   changes the live site.
+   - Only if the developer says another local copy of this site (another folder) still uses
+     wpsync, run `wpsync destroy --keep-connection` instead, which leaves the live side alone.
+4. If it stops before the dialogs ("can't be reached", "no longer accepts wpsync's key"),
+   nothing was deleted: give its fix line and stop. If it says "Not confirmed" or "Cancelled",
+   nothing was deleted: say so and stop.
+5. When it's done, report in plain words what it printed: the local copy is gone, and the bridge
+   and key were removed from live (or, if a line says "not removed" / "not revoked" or "Couldn't
+   remove", give that line's manual step). If Wordfence was switched off for this, follow
+   wordfence.md ("When wpsync is done") to have it switched back on, checking with
+   `wpsync doctor <site-url>` (the folder is gone, so `status` can't run). Then suggest closing
+   this session, since its folder no longer exists.

@@ -38,7 +38,7 @@ describe("wpsync destroy", () => {
     const result = await destroy({ dir }, { confirm, ddevDelete: (d) => deleted.push(d) });
     expect(asked).toEqual([1, 2, 3]);
     expect(deleted).toEqual([dir]);
-    expect(result).toMatchObject({ host: "example.com", homeUrl: "https://example.com", ddevDeleted: true });
+    expect(result).toMatchObject({ host: "example.com", homeUrl: "https://example.com", ddevDeleted: true, live: { status: "not-connected" } });
     expect(existsSync(dir)).toBe(false);
   });
 
@@ -69,8 +69,52 @@ describe("wpsync destroy", () => {
     expect(existsSync(dir)).toBe(true);
   });
 
+  it("removes wpsync from live after the dialogs, and says so in them", async () => {
+    const dir = siteProject(true);
+    const events: string[] = [];
+    const live = async (url: string) => {
+      events.push(`check ${url}`);
+      return { homeUrl: url, remove: async () => (events.push("remove"), { bridgeRemoved: true, keyRevoked: true, homeUrl: url }) };
+    };
+    const confirm: DestroyConfirmProvider = async (request, step) => {
+      events.push(`confirm ${step}`);
+      expect(request.disconnect).toBe(true);
+      expect(request.summary).toContain("On example.com: the wpsync bridge plugin");
+      return true;
+    };
+    const result = await destroy({ dir }, { confirm, ddevDelete: () => events.push("ddev"), live });
+    expect(events).toEqual(["check https://example.com", "confirm 1", "confirm 2", "confirm 3", "remove", "ddev"]);
+    expect(result.live).toEqual({ status: "removed", bridgeRemoved: true, keyRevoked: true });
+    expect(existsSync(dir)).toBe(false);
+  });
+
+  it("deletes nothing, and shows no dialog, when the live check fails", async () => {
+    const dir = siteProject(true);
+    const { confirm, asked } = answers(true, true, true);
+    const live = async () => {
+      throw Object.assign(new Error("Wordfence"), { code: "wordfence_application_passwords" });
+    };
+    await expect(destroy({ dir }, { confirm, ddevDelete: () => expect.fail("kept"), live })).rejects.toMatchObject({ code: "wordfence_application_passwords" });
+    expect(asked).toEqual([]);
+    expect(existsSync(dir)).toBe(true);
+  });
+
+  it("still deletes the local copy if removing from live fails after the dialogs", async () => {
+    const dir = siteProject(false);
+    const live = async (url: string) => ({ homeUrl: url, remove: async () => Promise.reject(new Error("network down")) });
+    const result = await destroy({ dir }, { confirm: answers(true, true, true).confirm, live });
+    expect(result.live).toEqual({ status: "failed", message: "network down" });
+    expect(existsSync(dir)).toBe(false);
+  });
+
+  it("leaves live alone with --keep-connection", async () => {
+    const dir = siteProject(false);
+    const result = await destroy({ dir, keepConnection: true }, { confirm: answers(true, true, true).confirm, live: () => expect.fail("no check") });
+    expect(result.live).toEqual({ status: "kept" });
+  });
+
   it("shows three separate dialogs, Cancel by default, the last asking for the domain", () => {
-    const request = { host: "example.com", dir: "/x", summary: 'Folder: /x "quoted"' };
+    const request = { host: "example.com", dir: "/x", disconnect: false, summary: 'Folder: /x "quoted"' };
     const one = destroySpec(request, 1);
     const two = destroySpec(request, 2);
     const three = destroySpec(request, 3);
@@ -84,5 +128,7 @@ describe("wpsync destroy", () => {
     expect(three.fields).toHaveLength(1);
     expect(three.buttons.at(-1)).toBe("Cancel");
     expect(sameHost("example.com", "example.com")).toBe(true);
+    expect(one.message).toContain("are not touched");
+    expect(destroySpec({ ...request, disconnect: true }, 3).message).toContain("removed from the live site");
   });
 });

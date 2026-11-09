@@ -5,7 +5,7 @@
  */
 import { resolve } from "node:path";
 import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
-import { connect, disconnect } from "./connect";
+import { connect, disconnect, prepareDisconnect } from "./connect";
 import { allOk, checkLocal, checkSite, formatChecks } from "./doctor";
 import { destroy } from "./destroy";
 import { newProject } from "./new-project";
@@ -23,7 +23,7 @@ import { notify } from "./progress";
 import { MacKeychain } from "./secrets";
 import { normalizeUrl } from "./site";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 const USAGE = `wpsync ${VERSION}
 
@@ -55,10 +55,11 @@ Usage:
   wpsync disconnect <site-url>
       Remove the bridge from the site and revoke wpsync's key.
 
-  wpsync destroy [--dir <folder>]
+  wpsync destroy [--dir <folder>] [--keep-connection]
       Delete the whole local copy: its DDEV project (containers, database) and its folder
       (files, git history, backups/). Confirmed in three macOS dialogs, the last asking you
-      to type the site's domain. The live site and wpsync's connection are not touched.
+      to type the site's domain. Also removes wpsync from the live site (bridge plugin, key,
+      Keychain entry), never its content; --keep-connection leaves that for another copy.
 
   wpsync pull <site-url> [--dir <folder>] [--name <ddev-name>] [--overwrite-code]
       Copy the live site into a local DDEV project (default folder:
@@ -317,9 +318,27 @@ async function runDisconnect(args: Parsed): Promise<void> {
 }
 
 async function runDestroy(args: Parsed): Promise<void> {
-  const result = await destroy({ dir: stringFlag(args, "dir"), log: (line) => console.log(line) }, { confirm: macDestroyDialog });
-  console.log(`Deleted the local copy of ${result.host} (${result.dir}${result.ddevDeleted ? " and its DDEV project" : ""}).
-The live site is untouched. To also remove wpsync from it: wpsync disconnect ${result.homeUrl}`);
+  const allowHttp = args.flags.has("allow-http");
+  const store = new MacKeychain();
+  const result = await destroy(
+    { dir: stringFlag(args, "dir"), keepConnection: args.flags.has("keep-connection"), log: (line) => console.log(line) },
+    { confirm: macDestroyDialog, live: (url) => prepareDisconnect({ url, allowHttp }, { store }) },
+  );
+  console.log(`Deleted the local copy of ${result.host} (${result.dir}${result.ddevDeleted ? " and its DDEV project" : ""}).`);
+  const live = result.live;
+  if (live.status === "removed") {
+    console.log(`Removed wpsync from ${result.homeUrl}; its content is untouched.
+  Bridge plugin  ${live.bridgeRemoved ? "removed" : "not removed: delete wpsync bridge under Plugins in wp-admin"}
+  wpsync's key   ${live.keyRevoked ? "revoked" : "not revoked: remove it under Users → Profile → Application Passwords"}
+  Keychain       forgotten`);
+  } else if (live.status === "failed") {
+    console.log(`Couldn't remove wpsync from ${result.homeUrl}: ${live.message}
+To finish: wpsync disconnect ${result.homeUrl}`);
+  } else if (live.status === "kept") {
+    console.log(`wpsync is still connected to ${result.homeUrl}. To remove it: wpsync disconnect ${result.homeUrl}`);
+  } else {
+    console.log(`wpsync had no connection to ${result.homeUrl}, so nothing there was changed.`);
+  }
 }
 
 /** Commands long enough that their end deserves a notification. */

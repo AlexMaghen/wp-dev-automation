@@ -72,7 +72,7 @@ export function destroySpec(request: DestroyRequest, step: 1 | 2 | 3): DialogSpe
   if (step === 3) {
     return {
       heading: `Last check (3 of 3): delete the local copy of ${request.host} now?`,
-      message: "The live site is not touched.",
+      message: request.disconnect ? "wpsync is removed from the live site too; its content is not touched." : "The live site is not touched.",
       info,
       fields: [{ label: "To delete it, type the site's domain:" }],
       buttons: ["Delete", "Cancel"],
@@ -82,7 +82,9 @@ export function destroySpec(request: DestroyRequest, step: 1 | 2 | 3): DialogSpe
   if (step === 1) {
     return {
       heading: `Delete the whole local copy of ${request.host} from this Mac? (1 of 3)`,
-      message: `${summary}\n\nThe live site, and wpsync's connection to it, are not touched.`,
+      message: request.disconnect
+        ? `${summary}\n\nThe live site's pages, posts, files and settings are not touched. To work on it again later, start a new local copy.`
+        : `${summary}\n\nThe live site, and wpsync's connection to it, are not touched.`,
       info,
       buttons: ["Continue", "Cancel"],
       caution: true,
