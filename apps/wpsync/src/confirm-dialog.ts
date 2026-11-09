@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { DIALOG_GIVE_UP_SECONDS, DIALOG_PRELUDE, GAVE_UP_CHECK } from "./dialog";
+import type { DestroyConfirmProvider, DestroyRequest } from "./destroy";
 import { WpsyncError } from "./errors";
 import { notify } from "./progress";
 
@@ -72,6 +73,43 @@ export const macConfirmDialog: ConfirmProvider = async (request) => {
   notify("wpsync is waiting for you", request.action === "push" ? `Type ${request.host} in the wpsync dialog to publish, or Cancel.` : `Confirm the ${request.action} of ${request.host} in the wpsync dialog.`);
   const answer = osascript(confirmScript(request)).trim();
   if (request.action === "push") return sameHost(answer, request.host);
+  return answer.length > 0;
+};
+
+/**
+ * The AppleScript for each of `wpsync destroy`'s three confirmations (exported for tests).
+ * Each is its own dialog, with Cancel as the default button on the first two, so a stray Return
+ * never deletes anything; the third asks for the site's domain to be typed.
+ */
+export function destroyScript(request: DestroyRequest, step: 1 | 2 | 3): string {
+  const summary = request.summary.length > 900 ? `${request.summary.slice(0, 900)}…` : request.summary;
+  const title = `wpsync: delete local copy (${step} of 3)`;
+  if (step === 3) {
+    const text = `Last check. Deleting the local copy of ${request.host} now.\n\nThe live site is not touched.\n\nTo delete it, type the site's domain:`;
+    return [
+      DIALOG_PRELUDE,
+      `set r to (display dialog ${asString(text)} default answer "" with title ${asString(title)} with icon stop buttons {"Cancel", "Delete"} default button "Cancel" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
+      GAVE_UP_CHECK,
+      "text returned of r",
+    ].join("\n");
+  }
+  const text =
+    step === 1
+      ? `Delete the whole local copy of ${request.host} from this Mac?\n\n${summary}\n\nThe live site, and wpsync's connection to it, are not touched.`
+      : `Are you sure? This can't be undone: the local files, database and git history of ${request.host} will be gone.\n\nAnything you haven't published to live is lost.`;
+  const button = step === 1 ? "Continue" : "Yes, delete it";
+  return [
+    DIALOG_PRELUDE,
+    `set r to (display dialog ${asString(text)} with title ${asString(title)} with icon caution buttons {"Cancel", ${asString(button)}} default button "Cancel" cancel button "Cancel" giving up after ${DIALOG_GIVE_UP_SECONDS})`,
+    GAVE_UP_CHECK,
+    "button returned of r",
+  ].join("\n");
+}
+
+export const macDestroyDialog: DestroyConfirmProvider = async (request, step) => {
+  if (step === 1) notify("wpsync is waiting for you", `Confirm deleting the local copy of ${request.host} in the wpsync dialogs, or Cancel.`);
+  const answer = osascript(destroyScript(request, step)).trim();
+  if (step === 3) return sameHost(answer, request.host);
   return answer.length > 0;
 };
 

@@ -1,6 +1,6 @@
 ---
 name: wp-dev
-description: Local development of live WordPress sites with wpsync and DDEV, from only an admin login. Use when the developer says "new wp-dev project", "I want to work on my WordPress site locally", "set up example.com", "continue my wp-dev project" or "continue wp-dev", or asks where a wp-dev project stands. Works out the phase (set up, work, publish) and runs it.
+description: Local development of live WordPress sites with wpsync and DDEV, from only an admin login. Use when the developer says "new wp-dev project", "I want to work on my WordPress site locally", "set up example.com", "continue my wp-dev project" or "continue wp-dev", asks where a wp-dev project stands, or asks to delete a local copy. Works out the phase (set up, work, publish) and runs it.
 ---
 
 <!--
@@ -59,6 +59,9 @@ Run `wpsync status --json` in the current folder and go by its `phase`:
 | `connect`, `pull` | Phase 1 from step 2 (it skips what's done) |
 | `work` | Phase 2: the `wp-work` skill for changes, `wp-pull` to refresh, `wp-publish` to go live |
 | `publish-pending` | The last publish is waiting for finalize or rollback: see `wp-publish` |
+
+In any phase: if the developer asks to delete, remove or destroy the local copy, see
+"Deleting a local copy" at the end.
 
 Whatever the phase: if `status` has a `wordfence` field, this site's Wordfence must be switched
 off while wpsync works on it and back on afterwards. Follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md`.
@@ -219,3 +222,20 @@ Then open the local site in Chrome, finish the checklist, and say:
 
 with {local domain} from `.wpsync.json`'s `localUrl`. Add one line on signing in: the local
 wp-admin takes their live username and password.
+
+## Deleting a local copy
+
+Only when the developer asks for it in words. `wpsync destroy` (in the site's folder, or with
+`--dir`) deletes the DDEV project (containers, local database) and the whole folder (files, git
+history, `backups/`). It can't be undone. It never touches the live site.
+
+1. First run `git status --short` in the folder. If anything is uncommitted, or work was done
+   since the last publish, say so in one line: it will be lost.
+2. Tell the developer that three macOS dialogs are about to appear, and that the last one asks
+   them to type the site's domain. Then run `wpsync destroy`. You never answer the dialogs and
+   never look for a way around them.
+3. If it says "Not confirmed" or "Cancelled", nothing was deleted: say so and stop.
+4. When it's done, the session's folder no longer exists, so suggest closing this session. Ask
+   whether they also want wpsync removed from the live site (`wpsync disconnect <site-url>`,
+   which deletes the bridge plugin and revokes wpsync's key). Only run it on their yes, since it
+   changes the live site.
