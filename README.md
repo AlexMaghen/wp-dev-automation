@@ -5,6 +5,12 @@ login**.
 
 ## Quick start
 
+Go into Claude Desktop on macOS and say this:
+
+> Install the wp-dev Claude plugin from https://github.com/AlexMaghen/wp-dev-automation by following its README, then tell me how to start my first site.
+
+## Initial setup
+
 **1. Make sure git works.** In Terminal:
 
 ```bash
