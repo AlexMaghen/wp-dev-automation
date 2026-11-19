@@ -6,6 +6,7 @@ import { WpsyncError } from "./errors";
 import type { PreparedDisconnect } from "./connect";
 import { bytes } from "./format";
 import { projectAt, requireDocker } from "./project";
+import { forgetSite } from "./sites";
 
 /**
  * `wpsync destroy`: delete a site's whole local copy: its DDEV project (containers, database
@@ -103,6 +104,7 @@ export async function destroy(
   }
   log(`Deleting ${project.dir}…`);
   rmSync(project.dir, { recursive: true, force: true });
+  forgetSite(project.dir);
   return { dir: project.dir, host, homeUrl: meta.homeUrl, ddevDeleted, live };
 }
 

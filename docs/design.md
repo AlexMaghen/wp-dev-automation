@@ -199,7 +199,8 @@ push interrupted mid-way is undone with `wpsync rollback`.
 | `wpsync doctor --local` / `doctor <url>` | Every check before anything changes, reported together with fixes (section 14.4) |
 | `wpsync new <url>` | Phase 1 in one resumable command: init, doctor, connect, pull, verify; stops at the first thing that needs the developer |
 | `wpsync rollback` / `finalize` | Undo the last push / delete its saved state (each confirmed in a dialog) |
-| `wpsync status [--json]` | Where the project stands (phase, connection, last pull and push, DDEV), for the `wp-dev` skill |
+| `wpsync status [--json] [--local]` | Where the project stands (phase, connection, last pull and push, DDEV), for the `wp-dev` skill; `--local` contacts nothing (the wp-dev panel's refresh) |
+| `wpsync sites [--json]` | The local copies on this Mac, from `~/.wpsync/sites.json` (init and first pull add, destroy removes) plus `~/wp-sites/*`; their state from `.wpsync.json` alone. `/wp-dev` offers them from any folder |
 | `wpsync verify` | The local copy works: pages, wp-admin, permalinks, no live URLs left, images, plugins and theme match live |
 | `wpsync disconnect` | Section 4 |
 | `wpsync destroy` | Delete the whole local copy: `ddev delete --omit-snapshot` (containers, database and Mutagen volumes), then the folder. Three separate macOS confirmations, the last asking for the domain to be typed; no flag skips them. Then removes wpsync from live like `disconnect` (bridge, key, Keychain entry), checked before the dialogs so an unreachable or Wordfence-blocked site stops it with nothing deleted; `--keep-connection` skips that. Never touches live content. |

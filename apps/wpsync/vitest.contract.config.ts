@@ -1,5 +1,10 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { MKCERT_ROOT_CA } from "@wp-dev-automation/test-harness";
 import { defineConfig } from "vitest/config";
+
+// Tests list their throwaway site folders here, not in the developer's own ~/.wpsync/sites.json.
+process.env.WPSYNC_SITES_FILE = join(tmpdir(), `wpsync-test-sites-${process.pid}.json`);
 
 // Lets the test workers (started after this) trust DDEV's https certificates.
 if (MKCERT_ROOT_CA) process.env.NODE_EXTRA_CA_CERTS = MKCERT_ROOT_CA;

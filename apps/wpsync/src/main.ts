@@ -11,6 +11,7 @@ import { archive, describeArchive, unarchive } from "./archive";
 import { destroy } from "./destroy";
 import { newProject } from "./new-project";
 import { status } from "./status";
+import { listSites } from "./sites";
 import { verify } from "./verify";
 import { macLoginDialog } from "./dialog";
 import { WpsyncError } from "./errors";
@@ -24,7 +25,7 @@ import { notify } from "./progress";
 import { MacKeychain } from "./secrets";
 import { normalizeUrl } from "./site";
 
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 
 const USAGE = `wpsync ${VERSION}
 
@@ -49,6 +50,9 @@ Usage:
   wpsync status [--dir <folder>] [--json] [--local]
       Where a site project stands, and what to do next. --local contacts nothing (no
       check of the live site's key or Wordfence).
+
+  wpsync sites [--json]
+      List the local copies on this Mac and where each stands. Contacts nothing.
 
   wpsync verify [--dir <folder>] [--json]
       Check the local copy works: pages, wp-admin, permalinks, leftover live addresses,
@@ -352,6 +356,12 @@ To finish: wpsync disconnect ${result.homeUrl}`);
   }
 }
 
+function runSites(args: Parsed): void {
+  const sites = listSites();
+  const words = { "setting-up": "setup not finished", ready: "ready", "publish-pending": "published, waiting for finalize or rollback", archived: "archived" };
+  print(args, sites, sites.length ? sites.map((s) => `${s.host.padEnd(32)} ${words[s.state].padEnd(14)} ${s.dir}`).join("\n") : "No local copies on this Mac yet.");
+}
+
 async function runArchive(args: Parsed): Promise<void> {
   const dir = stringFlag(args, "dir");
   const result = await archive({ dir, images: args.flags.has("images"), log: (line) => console.log(line) });
@@ -393,6 +403,9 @@ async function main(argv: string[]): Promise<number> {
         return await runDoctor(args);
       case "status":
         await runStatus(args);
+        return 0;
+      case "sites":
+        runSites(args);
         return 0;
       case "verify":
         return await runVerify(args);

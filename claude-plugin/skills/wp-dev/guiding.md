@@ -36,7 +36,7 @@ project"), show the full list again, with the finished steps already ticked.
 **Setup** (wp-dev skill, phase 1):
 
 1. Name the live site
-2. Check this Mac and install what's missing
+2. Check this Mac and install what's missing (usually done already, at the start)
 3. Check the live site
 4. Connect to the live site
 5. Copy the live site to this Mac

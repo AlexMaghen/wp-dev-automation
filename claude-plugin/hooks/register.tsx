@@ -1,31 +1,36 @@
 /**
  * The wp-dev panel: a pane beside the chat that shows where this folder's wp-dev site stands
- * and offers the next actions as buttons.
+ * and offers the next actions as buttons. /wp-dev (the wp-dev skill's command) opens it from any
+ * folder, and the skill then checks this Mac and takes it from there.
  *
- * - Status comes from `wpsync status --json --local`, which contacts nothing; it is read when
- *   the session starts, after every turn, and on Refresh.
+ * - Everything shown comes from wpsync, which contacts nothing for it:
+ *   `wpsync status --json --local` (this folder; read when the session starts, after every
+ *   turn and every 20 seconds, so it follows the session into a site's folder),
+ *   `wpsync doctor --local --json` (this Mac's prerequisites) and `wpsync sites --json` (the
+ *   local copies on this Mac), both read when the panel opens and on Refresh.
  * - Every button that does something hands it to Claude as a prompt ("publish to live"), so the
  *   wp-dev skill runs it with its explanations, Wordfence steps and macOS confirmation dialogs.
- *   The panel itself never runs anything that changes a site.
- * - The pane opens by itself only in a folder that is a wp-dev site (or an empty folder, where
- *   one can be set up); anywhere else, /wp-panel opens it.
+ *   The panel itself never changes a site or this Mac.
+ * - It opens by itself in a folder that is a wp-dev site or is empty; /wp-dev opens it anywhere.
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { SiteStatus } from '../types'
+import type { LocalSite, MissingPrerequisite, Prerequisites, SiteStatus } from '../types'
 
 const PANE = 'wp-dev'
 const TITLE = 'wp-dev'
 
-const status = atom({ plugin: 'wp-dev', key: 'status' } as const, null as SiteStatus | null, { shape: 'status-1' })
+const status = atom({ plugin: 'wp-dev', key: 'status' } as const, null as SiteStatus | null, { shape: 'status-2' })
+const prerequisites = atom({ plugin: 'wp-dev', key: 'prerequisites' } as const, null as Prerequisites | null, { shape: 'prerequisites-1' })
+const sites = atom({ plugin: 'wp-dev', key: 'sites' } as const, [] as LocalSite[], { shape: 'sites-1' })
 
 /** One action: its button, and the words sent to Claude. */
 type Action = { key: string; label: string; prompt: string; primary?: boolean }
 
 /** The actions that fit each phase, most likely first. */
 const ACTIONS: Record<SiteStatus['phase'], Action[]> = {
-  'no-project': [{ key: 'new', label: 'Set up a new site', prompt: 'new wp-dev project', primary: true }],
+  'no-project': [{ key: 'new', label: 'Set up a new site', prompt: 'set up a new wp-dev site', primary: true }],
   'start-gate': [{ key: 'continue', label: 'Continue setup', prompt: 'continue my wp-dev project', primary: true }],
   connect: [{ key: 'continue', label: 'Continue setup', prompt: 'continue my wp-dev project', primary: true }],
   pull: [{ key: 'continue', label: 'Continue setup', prompt: 'continue my wp-dev project', primary: true }],
@@ -56,32 +61,49 @@ const PHASE_TEXT: Record<SiteStatus['phase'], string> = {
   archived: 'Archived: the database is saved in the folder, and DDEV is deleted.',
 }
 
+const SITE_STATE_TEXT: Record<LocalSite['state'], string> = {
+  'setting-up': 'setup not finished',
+  ready: 'ready',
+  'publish-pending': 'waiting after a publish',
+  archived: 'archived',
+}
+
+/** The wp-dev skill's command, however the engine names it. */
+const isWpDevCommand = (name: string | undefined): boolean => name === 'wp-dev' || name === 'wp-dev:wp-dev'
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    // Not /wp-dev: that name is the wp-dev skill's own shortcut.
-    await $.command.register({ name: 'wp-panel', description: 'Open the wp-dev panel: where this site stands, and what to do next' }).catch(() => undefined)
-    const now = await refresh($)
-    const isEmpty = await folderIsEmpty($)
-    if (now.phase !== 'no-project' || isEmpty) void $.ui.open({ id: PANE, title: TITLE })
+    const now = await refreshStatus($)
+    if (now.phase !== 'no-project' || now.isEmpty) {
+      await refreshMac($)
+      void $.ui.open({ id: PANE, title: TITLE })
+    }
+    void $.clock.every(20_000, () => void refreshStatus($))
     return result
   })
 
-  on('command.run', { command: 'wp-panel' }, async $ => {
-    await refresh($)
-    await $.ui.open({ id: PANE, title: TITLE })
-    return { text: 'The wp-dev panel is open.' }
+  // /wp-dev: open the panel with fresh checks, then let the skill run as usual.
+  on('prompt.submit', async ($, e, next) => {
+    // Never held up or stopped by the panel: the checks run beside the skill.
+    if (isWpDevCommand(e.command?.name)) {
+      void $.ui.open({ id: PANE, title: TITLE }).catch(() => undefined)
+      void refreshAll($).catch(() => undefined)
+    }
+    return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    void refresh($)
+    void refreshStatus($)
     return result
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button, Link } = $.ui.resolve(e)
     const now = await read($, status)
+    const mac = await read($, prerequisites)
+    const localSites = await read($, sites)
 
     if (!now) {
       return <Text dimColor>Checking this folder…</Text>
@@ -89,14 +111,40 @@ export const register: Register = on => {
 
     const site = now.homeUrl ? new URL(now.homeUrl).host : undefined
     const actions = ACTIONS[now.phase]
+    const missing = mac?.missing ?? []
+    const elsewhere = now.phase === 'no-project' ? localSites.filter(s => s.dir !== now.dir) : []
 
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
-          <Text bold>{site ?? 'No site here yet'}</Text>
-          <Text>{PHASE_TEXT[now.phase]}</Text>
+          <Text bold>{site ?? 'wp-dev'}</Text>
+          <Text>{now.phase === 'no-project' && now.isEmpty ? 'This empty folder can hold a new site.' : PHASE_TEXT[now.phase]}</Text>
           {now.error && now.phase === 'no-project' && <Text dimColor>wpsync: {now.error}</Text>}
         </Box>
+
+        {mac && (
+          <Box flexDirection="column">
+            {missing.length === 0 ? (
+              <Text dimColor>This Mac has everything wp-dev needs.</Text>
+            ) : (
+              <Box flexDirection="column">
+                <Text bold>This Mac still needs:</Text>
+                {missing.map(item => (
+                  <Text>
+                    · {item.label}
+                    {item.needsPerson ? <Text dimColor> (needs you)</Text> : ''}
+                  </Text>
+                ))}
+                <Button
+                  key="prerequisites"
+                  label="Set up this Mac"
+                  variant="primary"
+                  onPress={() => void $.prompt.submit({ text: 'install the missing wp-dev prerequisites on this Mac', asUser: true })}
+                />
+              </Box>
+            )}
+          </Box>
+        )}
 
         {now.homeUrl && (
           <Box flexDirection="column">
@@ -139,9 +187,27 @@ export const register: Register = on => {
           ))}
         </Box>
 
+        {elsewhere.length > 0 && (
+          <Box flexDirection="column">
+            <Text bold>Your sites</Text>
+            {elsewhere.map(one => (
+              <Box key={one.dir} gap={1}>
+                <Button
+                  key={`open:${one.dir}`}
+                  label={`Open ${one.host}`}
+                  onPress={() => void $.prompt.submit({ text: `open my wp-dev site in ${one.dir}`, asUser: true })}
+                />
+                <Text dimColor>{SITE_STATE_TEXT[one.state]}</Text>
+              </Box>
+            ))}
+          </Box>
+        )}
+
         <Box gap={1}>
-          <Button key="status" label="Where does it stand?" onPress={() => void $.prompt.submit({ text: 'where does my wp-dev project stand?', asUser: true })} />
-          <Button key="refresh" label="Refresh" onPress={() => void refresh($)} />
+          {now.phase !== 'no-project' && (
+            <Button key="status" label="Where does it stand?" onPress={() => void $.prompt.submit({ text: 'where does my wp-dev project stand?', asUser: true })} />
+          )}
+          <Button key="refresh" label="Refresh" onPress={() => void refreshAll($)} />
         </Box>
         <Text dimColor>Buttons ask Claude to do it. Publishing and deleting still ask you to confirm in a dialog.</Text>
       </Box>
@@ -149,22 +215,53 @@ export const register: Register = on => {
   })
 }
 
-/** Reads the folder's status (contacts nothing) into the panel's state. */
-async function refresh($: EngineInterface): Promise<SiteStatus> {
+/** The plugin's own wpsync. */
+async function wpsync($: EngineInterface, args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const env = await $.process.hookEnv()
-  const wpsync = `${env.CLAUDE_PLUGIN_ROOT}/bin/wpsync`
-  const checkedAt = await $.clock.now()
+  return $.process.run([`${env.CLAUDE_PLUGIN_ROOT}/bin/wpsync`, ...args], { timeoutMs: 30_000 })
+}
+
+async function refreshAll($: EngineInterface): Promise<void> {
+  await refreshStatus($)
+  await refreshMac($)
+}
+
+/** Reads this folder's status (contacts nothing) into the panel's state. */
+async function refreshStatus($: EngineInterface): Promise<SiteStatus> {
+  const dir = await $.session.cwd()
   let next: SiteStatus
   try {
-    const run = await $.process.run([wpsync, 'status', '--json', '--local'], { timeoutMs: 20_000 })
+    const run = await wpsync($, ['status', '--json', '--local'])
     next = run.exitCode === 0
-      ? { ...(JSON.parse(run.stdout) as Omit<SiteStatus, 'checkedAt'>), checkedAt }
-      : { phase: 'no-project', dir: await $.session.cwd(), checkedAt, error: (run.stderr || run.stdout).trim().split('\n').pop() }
+      ? (JSON.parse(run.stdout) as SiteStatus)
+      : { phase: 'no-project', dir, error: (run.stderr || run.stdout).trim().split('\n').pop() }
   } catch (error) {
-    next = { phase: 'no-project', dir: await $.session.cwd(), checkedAt, error: String(error) }
+    next = { phase: 'no-project', dir, error: String(error) }
   }
+  if (next.phase === 'no-project') next = { ...next, isEmpty: await folderIsEmpty($) }
   await update($, status, () => next)
   return next
+}
+
+/** This Mac's prerequisites and the local copies on it. */
+async function refreshMac($: EngineInterface): Promise<void> {
+  try {
+    // doctor exits 1 when something needs fixing; its JSON is on stdout either way.
+    const run = await wpsync($, ['doctor', '--local', '--json'])
+    const checks = JSON.parse(run.stdout) as Array<{ id: string; label: string; ok: boolean; needsPerson?: boolean }>
+    const missing: MissingPrerequisite[] = checks.filter(c => !c.ok).map(c => ({ id: c.id, label: c.label, needsPerson: !!c.needsPerson }))
+    await update($, prerequisites, () => ({ missing }))
+  } catch (error) {
+    // Bun missing (wpsync can't run at all), say: the skill installs it.
+    await update($, prerequisites, () => ({ missing: [{ id: 'wpsync', label: 'Bun, which wpsync runs on', needsPerson: false }], error: String(error) }))
+  }
+  try {
+    const run = await wpsync($, ['sites', '--json'])
+    const list = JSON.parse(run.stdout) as LocalSite[]
+    await update($, sites, () => list.map(s => ({ dir: s.dir, host: s.host, state: s.state })))
+  } catch {
+    await update($, sites, () => [])
+  }
 }
 
 /** Is the session's folder empty (a new site's folder)? .DS_Store and .claude don't count. */

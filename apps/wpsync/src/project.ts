@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { z } from "zod";
 import { WpsyncError } from "./errors";
 import { CLAUDE_SETTINGS, GITIGNORE, writeClaudeMd } from "./site-files";
+import { rememberSite } from "./sites";
 
 /**
  * A local site project: a folder with a DDEV config, WordPress in wp/, and .wpsync.json saying
@@ -114,6 +115,7 @@ export class Project {
     if (!existsSync(join(this.dir, ".gitignore"))) writeFileSync(join(this.dir, ".gitignore"), GITIGNORE);
     writeClaudeMd(this.claudeMdPath, siteName, { status: "set up, not pulled yet (run wpsync pull)", homeUrl });
     this.write({ homeUrl, setup: "pending" });
+    rememberSite(this.dir);
   }
 
   /** First pull: DDEV config, folders, any init files still missing, and a git repository. */
@@ -124,6 +126,7 @@ export class Project {
     mkdirSync(this.backupsDir, { recursive: true });
     writeFileSync(this.ddevConfigPath, ddevConfig);
     this.write(meta);
+    rememberSite(this.dir);
     if (!existsSync(join(this.dir, ".git"))) {
       git(this.dir, "init", "-q", "-b", "main");
       git(this.dir, "add", ".gitignore", ".wpsync.json", ".ddev/config.yaml", "CLAUDE.md", ".claude/settings.json");

@@ -27,7 +27,12 @@ where the developer pastes an Application Password they made themselves.
   copy (`~/Library/Application Support/Claude/claude-code/<version>/.../claude plugin validate
   claude-plugin` and `plugin test claude-plugin`). Keep `"hooks": {}` in `hooks/hooks.json` and no
   `types` key in plugin.json: older Claude Code rejects the plugin otherwise. The panel never
-  changes a site itself: its buttons send Claude a prompt, and it reads `wpsync status --local`.
+  changes a site itself: its buttons send Claude a prompt, and it reads `wpsync status --local`,
+  `wpsync doctor --local` and `wpsync sites`. `/wp-dev` (the wp-dev skill) is the one entry
+  point: the panel opens when it's typed, and the skill checks the Mac, then sets up or opens a
+  site, moving the session into its folder with the desktop app's `change_directory` tool.
+- Site folders are listed in `~/.wpsync/sites.json` (init and first pull add, destroy removes;
+  `~/wp-sites/*` is also scanned). Tests use `WPSYNC_SITES_FILE`, set in both vitest configs.
 - **Raise the plugin version for every change that ships** (`claude-plugin/.claude-plugin/plugin.json`,
   both `package.json` files and `VERSION` in `apps/wpsync/src/main.ts`; a unit test keeps them
   equal). Claude Code caches plugins by version: with the same number, `claude plugin update`

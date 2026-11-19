@@ -9,6 +9,10 @@ Go into Claude Desktop on macOS and say this:
 
 > Install the wp-dev Claude plugin from https://github.com/AlexMaghen/wp-dev-automation by following its README, then tell me how to start my first site.
 
+Once it's installed, start a new session in the Claude app's **Code** tab, in any folder, and type
+**`/wp-dev`**. That's the one command for everything: it checks this Mac has what it needs,
+opens the wp-dev panel beside the chat, and offers to set up a new site or open one you have.
+
 ## Initial setup
 
 **1. Make sure git works.** In Terminal:
@@ -41,13 +45,13 @@ claude plugin marketplace add AlexMaghen/wp-dev-automation
 claude plugin install wp-dev@wp-dev-automation
 ```
 
-**4. Copy a site to your Mac.** Make a new, empty folder for the site, for example
-`~/wp-sites/example.com`. In the Claude app's **Code** tab, start a new session **in that
-folder** (choose **Bypass permissions** if you don't want to approve each step) and say:
+**4. Copy a site to your Mac.** In the Claude app's **Code** tab, start a new session in any
+folder (choose **Bypass permissions** if you don't want to approve each step) and type:
 
-> new wp-dev project
+> /wp-dev
 
-It asks for the site's address. Later, when a **macOS dialog** asks for the site's admin username
+It checks this Mac and installs what's missing, then asks for the site's address, makes a folder
+for it (`~/wp-sites/<domain>`) and moves the session there. Later, when a **macOS dialog** asks for the site's admin username
 and password, type them there, never in the chat. Claude installs anything missing, copies the
 site, checks it, and tells you where to see it.
 
@@ -60,14 +64,14 @@ site, checks it, and tells you where to see it.
   asks you to **type the site's domain**. Afterwards, say **"finalize"** to keep it or **"roll
   back"** to undo it.
 
-Interrupted? Open a session in the site's folder and say **"continue my wp-dev project"**.
+Interrupted? Type **`/wp-dev`** in any session (or say **"continue my wp-dev project"** in the site's folder).
 
 Not working on a site for a while? In its folder's session, say **"archive the local copy"**: its
 database is saved into the folder and its Docker space is freed. **"Unarchive my wp-dev
 project"** brings it back as it was.
 
 **The wp-dev panel.** In the Claude desktop app, a panel beside the chat opens by itself in a
-site's folder (or type `/wp-panel`). It shows where the site stands (live and local addresses,
+site's folder (or type `/wp-dev` in any session). It shows where the site stands (live and local addresses,
 last pull and publish) and buttons for what fits now: pull, publish, archive, finalize, roll back,
 unarchive. A button just asks Claude to do it, so publishing and deleting still ask you to
 confirm in a dialog. It needs a recent Claude Code; the desktop app has one built in.

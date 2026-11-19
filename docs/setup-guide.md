@@ -72,7 +72,7 @@ project".
 - The bridge plugin wpsync installs on the site switches itself off within two hours, whatever
   happens. `wpsync disconnect` removes it and revokes wpsync's key.
 - **The wp-dev panel:** in the desktop app, a panel beside the chat shows the site's status
-  and buttons for the next steps; it opens by itself in a site's folder, or type `/wp-panel`.
+  and buttons for the next steps; it opens by itself in a site's folder, or type `/wp-dev` in any session.
 - **Not working on a site for a while:** "archive the local copy" saves its database into the
   folder and deletes its DDEV containers and volumes, giving the space back to Docker. "Unarchive
   my wp-dev project" brings it back as it was.
