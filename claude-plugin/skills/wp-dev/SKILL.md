@@ -44,15 +44,89 @@ before any wpsync command:
      check it" dialog. Then make Homebrew usable (see "Homebrew right after installing it"
      below) and install Bun as above.
 
-If wpsync runs, say nothing about it and go on. Only if you had to install Bun, tell the
-developer in one line that this was the first prerequisite, and that `wpsync doctor --local` will
-check the rest next.
+If wpsync runs, say nothing about it and go on to "Where are we?" (the folder comes before the
+other prerequisites). Only if you had to install Bun, tell the developer in one line that this
+was the first prerequisite, and that the rest are checked once the folder is settled.
 
-## This Mac's prerequisites (every time, in any folder)
+## Where are we?
 
-`/wp-dev` (and any wp-dev request in a session that hasn't checked yet) starts here, whatever the
-folder: nothing else works without these. The wp-dev panel beside the chat shows the same list.
-If everything is there, say so in one line ("This Mac has everything wp-dev needs.") and go on.
+**The folder comes first.** Before checking or starting anything (Docker included), say where
+this session is and settle which folder the work happens in: this section. Then "This Mac's
+prerequisites", then the phase's work.
+
+Run `wpsync status --json --local` in the current folder (it contacts nothing; run the full
+`wpsync status --json` once the prerequisites are checked, when the phase needs the live site)
+and go by its `phase`:
+
+| phase | Do |
+| --- | --- |
+| `no-project`, folder empty (only `.DS_Store` or `.claude`) | Phase 1 here, from step 1 |
+| `no-project`, any other folder | "Not in a site's folder" below |
+| `start-gate` (folder made in an earlier session) | Phase 1 from step 3 |
+| `connect`, `pull` | Phase 1 from step 3 (it skips what's done) |
+| `work` | Phase 2: the `wp-work` skill for changes, `wp-pull` to refresh, `wp-publish` to go live |
+| `publish-pending` | The last publish is waiting for finalize or rollback: see `wp-publish` |
+| `archived` | The copy is parked: see "Archiving a local copy" at the end. Nothing else runs until it's unarchived |
+
+In a site's folder, when `/wp-dev` was typed with nothing else, say in two or three plain lines
+where the site stands (`status`'s `next`) and that the panel beside the chat has buttons for the
+next steps; then wait for them to pick one or say what they'd like. Check the prerequisites
+once they've picked something that needs them, not before.
+
+In any phase: if the developer asks to delete, remove or destroy the local copy, see
+"Deleting a local copy" at the end. If they ask to archive, park or shelve it, free up its disk
+space, or unarchive / restore / bring it back, see "Archiving a local copy".
+
+Whatever the phase: if `status` has a `wordfence` field, this site's Wordfence must be switched
+off while wpsync works on it and back on afterwards. Follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md`.
+
+In phase 1, start (or, when resuming, show again) the **Setup checklist** from `guiding.md`,
+with finished steps ticked, and start a "Setup" chapter.
+
+### Not in a site's folder
+
+The session is somewhere else (the home folder, the Desktop, another project). Run
+`wpsync sites --json`: the local copies on this Mac, wherever their folders are.
+
+- The developer already said what they want ("set up a new wp-dev site", "open my wp-dev site
+  in <folder>"): do that, below.
+- Otherwise **ask** "What would you like to do?" with **Set up a new site** (Recommended when
+  there are no sites) and, for up to three sites, **Open <host>** (its state in the
+  description: ready, archived, waiting after a publish, setup not finished). With more than
+  three, the last option is **Open another of my sites**, then ask which, listing them.
+
+**Set up a new site:** ask for the live site's address, in one short line ("What's the live
+site's address? For example, `https://example.com`."). The folder is `~/wp-sites/<host>`
+(say so in the same breath; if they'd like it somewhere else they'll say). If that folder already
+holds a wp-dev site, it's "Open" instead; if it holds anything else, ask for another name.
+Then `wpsync init <site-url> --dir <folder>` and move this session into the folder (below).
+Then "This Mac's prerequisites", then phase 1 from step 3.
+
+**Open a site:** move this session into its folder (below), then go by its `phase` as above
+(the prerequisites once something needs them).
+
+### Moving this session into a site's folder
+
+A site's work happens in its own folder (its `CLAUDE.md`, permissions and DDEV project live
+there). In the Claude desktop app, move this session there with the `change_directory` tool
+(`mcp__ccd_directory__change_directory`, loaded with ToolSearch if it's deferred), passing the
+folder's absolute path. The developer may be asked to approve the folder once. The move takes
+effect when your turn ends, so until then put `cd <folder> &&` in front of every command, and
+read the site's `CLAUDE.md` yourself (by its full path) so its rules apply now. The wp-dev panel
+follows the session into the folder by itself.
+
+Say it in one line: "Moved this session into <folder>, where <host>'s local copy lives."
+
+If there's no `change_directory` tool (a terminal session), say: "To work on <host>, start a new
+session in <folder> (in a terminal: `cd <folder> && claude`), then type /wp-dev." and stop.
+
+## This Mac's prerequisites (once the folder is settled)
+
+Second, after "Where are we?" has settled the folder (and moved the session if it had to), and
+before the first step that needs DDEV or the live site: setup, a pull, a publish, verify,
+archive or unarchive. Once per session is enough. The wp-dev panel beside the chat shows the
+same list. If everything is there, say so in one line ("This Mac has everything wp-dev needs.")
+and go on.
 
 `wpsync doctor --local` lists everything at once. Show it as the results table in `guiding.md`.
 Install what's missing, in this order:
@@ -90,70 +164,6 @@ add to `~/.zprofile`; never send them to reinstall it. Your own shell doesn't pi
 `~/.zprofile`, so in this session prefix commands with `eval "$(/opt/homebrew/bin/brew shellenv)" &&`.
 
 
-## Where are we?
-
-Run `wpsync status --json` in the current folder and go by its `phase`:
-
-| phase | Do |
-| --- | --- |
-| `no-project`, folder empty (only `.DS_Store` or `.claude`) | Phase 1 here, from step 1 |
-| `no-project`, any other folder | "Not in a site's folder" below |
-| `start-gate` (folder made in an earlier session) | Phase 1 from step 3 |
-| `connect`, `pull` | Phase 1 from step 3 (it skips what's done) |
-| `work` | Phase 2: the `wp-work` skill for changes, `wp-pull` to refresh, `wp-publish` to go live |
-| `publish-pending` | The last publish is waiting for finalize or rollback: see `wp-publish` |
-| `archived` | The copy is parked: see "Archiving a local copy" at the end. Nothing else runs until it's unarchived |
-
-In a site's folder, when `/wp-dev` was typed with nothing else, say in two or three plain lines
-where the site stands (`status`'s `next`) and that the panel beside the chat has buttons for the
-next steps; then wait for them to pick one or say what they'd like.
-
-In any phase: if the developer asks to delete, remove or destroy the local copy, see
-"Deleting a local copy" at the end. If they ask to archive, park or shelve it, free up its disk
-space, or unarchive / restore / bring it back, see "Archiving a local copy".
-
-Whatever the phase: if `status` has a `wordfence` field, this site's Wordfence must be switched
-off while wpsync works on it and back on afterwards. Follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md`.
-
-In phase 1, start (or, when resuming, show again) the **Setup checklist** from `guiding.md`,
-with finished steps ticked, and start a "Setup" chapter.
-
-### Not in a site's folder
-
-The session is somewhere else (the home folder, the Desktop, another project). Run
-`wpsync sites --json`: the local copies on this Mac, wherever their folders are.
-
-- The developer already said what they want ("set up a new wp-dev site", "open my wp-dev site
-  in <folder>"): do that, below.
-- Otherwise **ask** "What would you like to do?" with **Set up a new site** (Recommended when
-  there are no sites) and, for up to three sites, **Open <host>** (its state in the
-  description: ready, archived, waiting after a publish, setup not finished). With more than
-  three, the last option is **Open another of my sites**, then ask which, listing them.
-
-**Set up a new site:** ask for the live site's address, in one short line ("What's the live
-site's address? For example, `https://example.com`."). The folder is `~/wp-sites/<host>`
-(say so in the same breath; if they'd like it somewhere else they'll say). If that folder already
-holds a wp-dev site, it's "Open" instead; if it holds anything else, ask for another name.
-Then `wpsync init <site-url> --dir <folder>` and move this session into the folder (below), and
-go on with phase 1 from step 3.
-
-**Open a site:** move this session into its folder (below), then go by its `phase` as above.
-
-### Moving this session into a site's folder
-
-A site's work happens in its own folder (its `CLAUDE.md`, permissions and DDEV project live
-there). In the Claude desktop app, move this session there with the `change_directory` tool
-(`mcp__ccd_directory__change_directory`, loaded with ToolSearch if it's deferred), passing the
-folder's absolute path. The developer may be asked to approve the folder once. The move takes
-effect when your turn ends, so until then put `cd <folder> &&` in front of every command, and
-read the site's `CLAUDE.md` yourself (by its full path) so its rules apply now. The wp-dev panel
-follows the session into the folder by itself.
-
-Say it in one line: "Moved this session into <folder>, where <host>'s local copy lives."
-
-If there's no `change_directory` tool (a terminal session), say: "To work on <host>, start a new
-session in <folder> (in a terminal: `cd <folder> && claude`), then type /wp-dev." and stop.
-
 ## Phase 1: set up the local copy
 
 ### 1. The address (in a new, empty folder)
@@ -175,8 +185,9 @@ straight on.
 
 ### 2. Check this Mac
 
-Done already: "This Mac's prerequisites" runs before anything else, every time. If this is a
-resumed setup and anything changed since (Docker quit, say), run `wpsync doctor --local` again.
+"This Mac's prerequisites" above, now that the folder is settled, unless it already ran in this
+session. On a resumed setup where anything may have changed since (Docker quit, say), run
+`wpsync doctor --local` again.
 
 ### 3. Check the site
 
