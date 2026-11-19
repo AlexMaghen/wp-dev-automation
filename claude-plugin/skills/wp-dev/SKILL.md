@@ -1,6 +1,6 @@
 ---
 name: wp-dev
-description: Local development of live WordPress sites with wpsync and DDEV, from only an admin login. Use when the developer says "new wp-dev project", "I want to work on my WordPress site locally", "set up example.com", "continue my wp-dev project" or "continue wp-dev", asks where a wp-dev project stands, or asks to delete a local copy. Works out the phase (set up, work, publish) and runs it.
+description: Local development of live WordPress sites with wpsync and DDEV, from only an admin login. Use when the developer says "new wp-dev project", "I want to work on my WordPress site locally", "set up example.com", "continue my wp-dev project" or "continue wp-dev", asks where a wp-dev project stands, asks to delete, archive or unarchive (restore) a local copy. Works out the phase (set up, work, publish) and runs it.
 ---
 
 <!--
@@ -59,9 +59,11 @@ Run `wpsync status --json` in the current folder and go by its `phase`:
 | `connect`, `pull` | Phase 1 from step 2 (it skips what's done) |
 | `work` | Phase 2: the `wp-work` skill for changes, `wp-pull` to refresh, `wp-publish` to go live |
 | `publish-pending` | The last publish is waiting for finalize or rollback: see `wp-publish` |
+| `archived` | The copy is parked: see "Archiving a local copy" at the end. Nothing else runs until it's unarchived |
 
 In any phase: if the developer asks to delete, remove or destroy the local copy, see
-"Deleting a local copy" at the end.
+"Deleting a local copy" at the end. If they ask to archive, park or shelve it, free up its disk
+space, or unarchive / restore / bring it back, see "Archiving a local copy".
 
 Whatever the phase: if `status` has a `wordfence` field, this site's Wordfence must be switched
 off while wpsync works on it and back on afterwards. Follow `${CLAUDE_PLUGIN_ROOT}/skills/wp-dev/wordfence.md`.
@@ -226,6 +228,36 @@ as signing in, go before it):
 
 with `https://{local site domain}` replaced by `.wpsync.json`'s `localUrl`. Just before it, one
 line on signing in: the local wp-admin takes their live username and password.
+
+## Archiving a local copy
+
+Only when the developer asks. Archiving frees the disk space a local copy holds in Docker while
+nobody works on it, and unarchiving brings it back exactly as it was. Neither touches the live
+site, and neither needs Wordfence switched off.
+
+**What archive does,** in one or two plain sentences before running it: it saves the local
+database into the folder (`backups/archive.sql.gz`), checks the saved copy, then deletes the
+site's DDEV containers and volumes. The folder itself (WordPress files, git history, backups)
+stays where it is.
+
+**Archive:**
+1. Run `git status --short`. If anything is uncommitted, say so in one line and offer to commit
+   it first (it isn't lost by archiving, but it's the natural moment).
+2. If the developer wants *all* of Docker's DDEV space back and has no other local copies, add
+   `--images`: DDEV's shared images go too (a few GB) and download again at the next unarchive.
+   Don't add it unless they ask for the most space or say this is their only site.
+3. Run `wpsync archive` as a long job (`guiding.md`). If it stops with "doesn't look complete",
+   nothing was deleted: run it again once, then report.
+4. Report what it printed: the size of the saved database, that DDEV's copy is gone, and that
+   "unarchive my wp-dev project" (or `wpsync unarchive`) brings it back.
+
+**Unarchive** (`phase` is `archived`, and the developer wants to work on it again):
+1. Make sure Docker is running (start it as in setup step 2).
+2. Run `wpsync unarchive` as a long job. It may download DDEV's images first.
+3. Run `wpsync verify` and show its table, then carry on with phase 2.
+
+Never run `ddev start` on an archived copy: it would come up with an empty database. If
+`ddev start` was run by mistake, `wpsync unarchive` still works (it loads the saved database).
 
 ## Deleting a local copy
 

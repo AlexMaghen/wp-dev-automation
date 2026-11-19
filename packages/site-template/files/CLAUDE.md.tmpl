@@ -21,6 +21,10 @@ site changes only when the developer asks to publish.
   before starting new work, so you build on what's live now.
 - `wpsync push --dry-run` shows what publishing would change. `wpsync push` **replaces the live
   site** with this copy, and only ever runs when the developer says so.
+- `wpsync archive` parks this copy when it isn't being worked on: it saves the database into
+  `backups/archive.sql.gz` and deletes the DDEV project to free its space in Docker (the folder
+  stays). `wpsync unarchive` brings it back. While archived, `ddev start` would come up with an
+  empty database: always use `wpsync unarchive`.
 - Git tracks only code the team writes (see `.gitignore`). Commit as you go.
 
 <!-- wpsync:rules:start -->

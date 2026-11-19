@@ -62,6 +62,10 @@ site, checks it, and tells you where to see it.
 
 Interrupted? Open a session in the site's folder and say **"continue my wp-dev project"**.
 
+Not working on a site for a while? In its folder's session, say **"archive the local copy"**: its
+database is saved into the folder and its Docker space is freed. **"Unarchive my wp-dev
+project"** brings it back as it was.
+
 The rest of this page explains each step in more detail.
 
 ## How it works

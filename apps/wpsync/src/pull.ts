@@ -6,7 +6,7 @@ import { ddevName, ddevSettings, renderDdevConfig } from "./ddev-config";
 import { WpsyncError } from "./errors";
 import { fetchInto, findCodeDrift, listLocal, listRemote, planSync, removeLocal } from "./file-sync";
 import { bytes, count } from "./format";
-import { defaultProjectDir, noteWordfence, projectAt, requireDocker, type Project, type ProjectFile } from "./project";
+import { defaultProjectDir, noteWordfence, projectAt, requireDocker, requireNotArchived, type Project, type ProjectFile } from "./project";
 import { ensureCurrentBridge } from "./bridge-update";
 import { requireApplicationPasswords } from "./connect";
 import { RestClient } from "./rest-client";
@@ -87,6 +87,7 @@ async function pullWithBridge(options: PullOptions, deps: PullDeps, site: Site, 
 
     const project = projectAt(options.dir ?? defaultProjectDir(site.homeUrl));
     const existing = project.exists() ? project.read() : undefined;
+    if (existing) requireNotArchived(existing);
     // A folder from `wpsync init` counts as a first pull; it may have been made from the
     // address as typed (say, without www), so it adopts the site's real address.
     const firstPull = !existing || existing.setup === "pending";

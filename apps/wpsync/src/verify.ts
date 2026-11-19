@@ -1,7 +1,7 @@
 import { WpsyncError } from "./errors";
 import type { Check } from "./doctor";
 import { http, parseJson } from "./http";
-import { projectAt, requireDocker } from "./project";
+import { projectAt, requireDocker, requireNotArchived } from "./project";
 
 /**
  * `wpsync verify`: is the local copy really working? (design section 14.4, step 10.) Pages and
@@ -16,6 +16,7 @@ export async function verify(options: { dir?: string } = {}): Promise<Check[]> {
   if (!project.exists()) throw new WpsyncError("not_a_project", `${project.dir} isn't a wpsync site project.`);
   const meta = project.read();
   if (meta.setup !== "ready" || !meta.localUrl) throw new WpsyncError("not_pulled", "This project hasn't been pulled yet.");
+  requireNotArchived(meta);
   requireDocker();
   project.ddev(["start", "-y"]);
 

@@ -43,6 +43,19 @@ export const ProjectFile = z.object({
       switchedOffAt: z.string(),
     })
     .optional(),
+  /**
+   * Set by `wpsync archive`: the DDEV project is deleted and its database is in this file
+   * (relative to the folder) until `wpsync unarchive` loads it back.
+   */
+  archived: z
+    .object({
+      at: z.string(),
+      file: z.string(),
+      bytes: z.number(),
+      sha256: z.string(),
+      tables: z.number(),
+    })
+    .optional(),
   lastPush: z
     .object({
       at: z.string(),
@@ -209,6 +222,16 @@ export function noteWordfence(dir: string, homeUrl: string, now: Date = new Date
 
 function git(dir: string, ...args: string[]): string {
   return execFileSync("git", ["-C", dir, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
+/** Commands that need DDEV running stop on an archived copy, saying how to bring it back. */
+export function requireNotArchived(meta: ProjectFile): void {
+  if (!meta.archived) return;
+  throw new WpsyncError(
+    "archived",
+    `The local copy of ${new URL(meta.homeUrl).host} is archived (since ${meta.archived.at.slice(0, 10)}): its DDEV project is deleted.`,
+    "Bring it back first: wpsync unarchive",
+  );
 }
 
 /** Where a site's project goes when the person doesn't say. */

@@ -18,7 +18,7 @@ import { WpsyncError } from "./errors";
 import { fetchInto, listLocal, listRemote } from "./file-sync";
 import { bytes, count, plural } from "./format";
 import { http, parseJson } from "./http";
-import { projectAt, requireDocker, type Project, type ProjectFile } from "./project";
+import { projectAt, requireDocker, requireNotArchived, type Project, type ProjectFile } from "./project";
 import { exportDatabase, pieces, planPush, scratchDir, toLiveReplacements, writeFilesArchive, type PushFilePlan } from "./push-local";
 import type { ConfirmProvider } from "./confirm-dialog";
 import { ensureCurrentBridge } from "./bridge-update";
@@ -109,6 +109,7 @@ async function open(options: { dir?: string; allowHttp?: boolean; log?: (line: s
   if (meta.setup !== "ready" || !meta.localUrl || !meta.siteUrl) {
     throw new WpsyncError("not_pulled", "This project hasn't been pulled yet, so there's nothing to publish.", `Run: wpsync pull ${meta.homeUrl}`);
   }
+  requireNotArchived(meta);
   const site = await discoverSite(meta.homeUrl, { allowHttp: options.allowHttp });
   await requireApplicationPasswords(site);
   const connection = await store.get(siteKey(site.homeUrl));

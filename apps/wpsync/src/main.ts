@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 import { BRIDGE_VERSION } from "@wp-dev-automation/protocol";
 import { connect, disconnect, prepareDisconnect } from "./connect";
 import { allOk, checkLocal, checkSite, formatChecks } from "./doctor";
+import { archive, describeArchive, unarchive } from "./archive";
 import { destroy } from "./destroy";
 import { newProject } from "./new-project";
 import { status } from "./status";
@@ -23,7 +24,7 @@ import { notify } from "./progress";
 import { MacKeychain } from "./secrets";
 import { normalizeUrl } from "./site";
 
-const VERSION = "0.2.2";
+const VERSION = "0.3.0";
 
 const USAGE = `wpsync ${VERSION}
 
@@ -60,6 +61,15 @@ Usage:
       (files, git history, backups/). Confirmed in three macOS dialogs, the last asking you
       to type the site's domain. Also removes wpsync from the live site (bridge plugin, key,
       Keychain entry), never its content; --keep-connection leaves that for another copy.
+
+  wpsync archive [--dir <folder>] [--images]
+      Park a local copy you're not working on: save its database into the folder
+      (backups/archive.sql.gz), then delete its DDEV containers and volumes to free the
+      space in Docker. The folder stays. --images also deletes DDEV's Docker images when no
+      other DDEV project uses them. The live site isn't touched.
+
+  wpsync unarchive [--dir <folder>]
+      Bring an archived copy back: start DDEV and load the saved database.
 
   wpsync pull <site-url> [--dir <folder>] [--name <ddev-name>] [--overwrite-code]
       Copy the live site into a local DDEV project (default folder:
@@ -341,8 +351,19 @@ To finish: wpsync disconnect ${result.homeUrl}`);
   }
 }
 
+async function runArchive(args: Parsed): Promise<void> {
+  const dir = stringFlag(args, "dir");
+  const result = await archive({ dir, images: args.flags.has("images"), log: (line) => console.log(line) });
+  console.log(`\n${describeArchive(result, resolve(dir ?? process.cwd()))}`);
+}
+
+async function runUnarchive(args: Parsed): Promise<void> {
+  const result = await unarchive({ dir: stringFlag(args, "dir"), log: (line) => console.log(line) });
+  console.log(`\nRestored: ${result.tables} tables loaded. The local copy is at ${result.localUrl}. Run wpsync verify to check it.`);
+}
+
 /** Commands long enough that their end deserves a notification. */
-const LONG_COMMANDS = new Set(["pull", "push", "rollback", "finalize", "new"]);
+const LONG_COMMANDS = new Set(["pull", "push", "rollback", "finalize", "new", "archive", "unarchive"]);
 
 class UsageError extends Error {}
 
@@ -379,6 +400,12 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case "destroy":
         await runDestroy(args);
+        return 0;
+      case "archive":
+        await runArchive(args);
+        return 0;
+      case "unarchive":
+        await runUnarchive(args);
         return 0;
       case "init":
         runInit(args);

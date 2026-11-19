@@ -203,6 +203,7 @@ push interrupted mid-way is undone with `wpsync rollback`.
 | `wpsync verify` | The local copy works: pages, wp-admin, permalinks, no live URLs left, images, plugins and theme match live |
 | `wpsync disconnect` | Section 4 |
 | `wpsync destroy` | Delete the whole local copy: `ddev delete --omit-snapshot` (containers, database and Mutagen volumes), then the folder. Three separate macOS confirmations, the last asking for the domain to be typed; no flag skips them. Then removes wpsync from live like `disconnect` (bridge, key, Keychain entry), checked before the dialogs so an unreachable or Wordfence-blocked site stops it with nothing deleted; `--keep-connection` skips that. Never touches live content. |
+| `wpsync archive` / `unarchive` | Park a local copy: start DDEV, flush Mutagen, `ddev export-db` to `backups/archive.sql.gz`, check it (gzip whole, "Dump completed" marker, one CREATE TABLE per base table), note it in `.wpsync.json` (size, sha256, table count), then `ddev delete --omit-snapshot`. `--images` also deletes DDEV's images when no other DDEV project exists. Unarchive checks the sha256, starts DDEV, imports, checks the table count, deletes the file. pull, push and verify refuse while archived; status reports phase `archived`. Local only. |
 | `wpsync update-rules` | Refresh the WordPress-native rules in the project's `CLAUDE.md` from the installed plugin |
 
 Each site project has `.wpsync.json` (site URL, local URL, last pull/push times, bridge version;

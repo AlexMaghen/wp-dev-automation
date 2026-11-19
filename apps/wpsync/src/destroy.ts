@@ -66,7 +66,8 @@ export async function destroy(
 
   const meta = project.read();
   const host = new URL(meta.homeUrl).host;
-  const hasDdev = existsSync(project.ddevConfigPath);
+  // An archived copy's DDEV project is already deleted; its database file is in backups/.
+  const hasDdev = existsSync(project.ddevConfigPath) && !meta.archived;
 
   let prepared: PreparedDisconnect | null = null;
   if (!options.keepConnection && deps.live) {

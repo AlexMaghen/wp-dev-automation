@@ -71,6 +71,9 @@ project".
   partway (a closed laptop), run `wpsync rollback` in the site's folder.
 - The bridge plugin wpsync installs on the site switches itself off within two hours, whatever
   happens. `wpsync disconnect` removes it and revokes wpsync's key.
+- **Not working on a site for a while:** "archive the local copy" saves its database into the
+  folder and deletes its DDEV containers and volumes, giving the space back to Docker. "Unarchive
+  my wp-dev project" brings it back as it was.
 - **Done with a local copy:** "delete the local copy" (or `wpsync destroy` in its folder)
   removes its DDEV project, database and folder. Three macOS dialogs confirm it first, the
   last asking you to type the domain. It also removes wpsync (its bridge plugin and key) from

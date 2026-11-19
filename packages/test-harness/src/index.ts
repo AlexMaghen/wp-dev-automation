@@ -21,6 +21,9 @@ export const PULLED_DDEV_NAME = "wpsync-pulltest";
 /** The local copy the push contract tests edit and publish back to the harness. */
 export const PUSHED_DIR = join(SITE_DIR, "..", "pulled", "push-site");
 export const PUSHED_DDEV_NAME = "wpsync-pushtest";
+/** The local copy the archive contract tests archive and bring back. */
+export const ARCHIVED_DIR = join(SITE_DIR, "..", "pulled", "archive-site");
+export const ARCHIVED_DDEV_NAME = "wpsync-archivetest";
 
 /** Deletes a DDEV project and its folder, if they exist. */
 export function deleteProject(dir: string): void {

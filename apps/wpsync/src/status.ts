@@ -11,7 +11,7 @@ import { discoverSite, siteKey } from "./site";
  * (design section 14.3). Never changes anything; the bridge stays switched off.
  */
 
-export type Phase = "no-project" | "start-gate" | "connect" | "pull" | "work" | "publish-pending";
+export type Phase = "no-project" | "start-gate" | "connect" | "pull" | "work" | "publish-pending" | "archived";
 
 export interface Status {
   dir: string;
@@ -24,6 +24,8 @@ export interface Status {
   bridgeVersion?: string | null;
   lastPull?: string;
   lastPush?: { at: string; finalized: boolean };
+  /** When the copy was archived (`wpsync archive`); `wpsync unarchive` brings it back. */
+  archivedAt?: string;
   ddevRunning?: boolean;
   /**
    * For sites whose Wordfence blocks Application Passwords (noted in .wpsync.json): where its
@@ -53,6 +55,17 @@ export async function status(options: { dir?: string; allowHttp?: boolean }, sto
     lastPush: meta.lastPush ? { at: meta.lastPush.at, finalized: meta.lastPush.finalized } : undefined,
     next: "",
   };
+
+  if (meta.archived) {
+    // Nothing runs locally until it's back, and nothing about live matters for that.
+    return {
+      ...base,
+      phase: "archived",
+      archivedAt: meta.archived.at,
+      ddevRunning: false,
+      next: "The local copy is archived (its DDEV project is deleted, its database saved in the folder). To work on it again: wpsync unarchive",
+    };
+  }
 
   const connection = await store.get(siteKey(meta.homeUrl)).catch(() => null);
   base.connected = !!connection;

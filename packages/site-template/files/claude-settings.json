@@ -13,6 +13,8 @@
       "Bash(wpsync verify*)",
       "Bash(wpsync update-rules*)",
       "Bash(wpsync push --dry-run*)",
+      "Bash(wpsync archive*)",
+      "Bash(wpsync unarchive*)",
       "Bash(*/bin/wpsync new *)",
       "Bash(*/bin/wpsync init *)",
       "Bash(*/bin/wpsync connect *)",
@@ -21,7 +23,9 @@
       "Bash(*/bin/wpsync doctor *)",
       "Bash(*/bin/wpsync verify*)",
       "Bash(*/bin/wpsync update-rules*)",
-      "Bash(*/bin/wpsync push --dry-run*)"
+      "Bash(*/bin/wpsync push --dry-run*)",
+      "Bash(*/bin/wpsync archive*)",
+      "Bash(*/bin/wpsync unarchive*)"
     ],
     "ask": [
       "Bash(wpsync push)",
