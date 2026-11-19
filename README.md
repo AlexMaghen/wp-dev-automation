@@ -66,6 +66,12 @@ Not working on a site for a while? In its folder's session, say **"archive the l
 database is saved into the folder and its Docker space is freed. **"Unarchive my wp-dev
 project"** brings it back as it was.
 
+**The wp-dev panel.** In the Claude desktop app, a panel beside the chat opens by itself in a
+site's folder (or type `/wp-panel`). It shows where the site stands (live and local addresses,
+last pull and publish) and buttons for what fits now: pull, publish, archive, finalize, roll back,
+unarchive. A button just asks Claude to do it, so publishing and deleting still ask you to
+confirm in a dialog. It needs a recent Claude Code; the desktop app has one built in.
+
 The rest of this page explains each step in more detail.
 
 ## How it works

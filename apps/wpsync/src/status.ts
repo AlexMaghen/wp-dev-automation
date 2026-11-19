@@ -9,6 +9,9 @@ import { discoverSite, siteKey } from "./site";
 /**
  * `wpsync status`: where a site project stands, for the wp-dev skill to pick the next phase
  * (design section 14.3). Never changes anything; the bridge stays switched off.
+ *
+ * `local: true` (`--local`) contacts nothing: no live site, so no check that the key still
+ * works or where Wordfence stands. The wp-dev panel uses it to refresh after every turn.
  */
 
 export type Phase = "no-project" | "start-gate" | "connect" | "pull" | "work" | "publish-pending" | "archived";
@@ -40,7 +43,7 @@ export interface Status {
   next: string;
 }
 
-export async function status(options: { dir?: string; allowHttp?: boolean }, store: SecretStore): Promise<Status> {
+export async function status(options: { dir?: string; allowHttp?: boolean; local?: boolean }, store: SecretStore): Promise<Status> {
   const project = projectAt(options.dir ?? process.cwd());
   if (!project.exists()) {
     return { dir: project.dir, phase: "no-project", next: "Start a new wp-dev project: wpsync init <site-url> (the start gate)." };
@@ -69,7 +72,7 @@ export async function status(options: { dir?: string; allowHttp?: boolean }, sto
 
   const connection = await store.get(siteKey(meta.homeUrl)).catch(() => null);
   base.connected = !!connection;
-  if (connection) {
+  if (connection && !options.local) {
     try {
       const site = await discoverSite(meta.homeUrl, { allowHttp: options.allowHttp });
       const rest = new RestClient(site, connection.username, connection.applicationPassword);
@@ -83,7 +86,7 @@ export async function status(options: { dir?: string; allowHttp?: boolean }, sto
       base.keyWorks = false;
     }
   }
-  if (meta.wordfence) {
+  if (meta.wordfence && !options.local) {
     const site = await discoverSite(meta.homeUrl, { allowHttp: options.allowHttp }).catch(() => null);
     base.wordfence = site && !site.applicationPasswords ? "back-on" : "switched-off";
     base.wordfenceSteps = wordfenceSteps(site?.siteUrl ?? meta.siteUrl ?? meta.homeUrl, base.wordfence === "switched-off");

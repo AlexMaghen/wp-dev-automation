@@ -21,6 +21,13 @@ where the developer pastes an Application Password they made themselves.
 - After changing the CLI, the site template or `claude-plugin/rules/`, run `pnpm generate` and
   `pnpm --filter wpsync bundle`: the plugin runs the committed bundle, `claude-plugin/bin/wpsync.mjs`.
 - `claude plugin validate .` checks the marketplace and plugin manifests.
+- The wp-dev panel is a mod (Claude Code function hooks) in `claude-plugin/hooks/register.tsx`,
+  its state contract in `claude-plugin/types/`, tests in `claude-plugin/tests/`. Mods need Claude
+  Code 2.1.3xx; the terminal's `claude` here may be older, so check it with the desktop app's
+  copy (`~/Library/Application Support/Claude/claude-code/<version>/.../claude plugin validate
+  claude-plugin` and `plugin test claude-plugin`). Keep `"hooks": {}` in `hooks/hooks.json` and no
+  `types` key in plugin.json: older Claude Code rejects the plugin otherwise. The panel never
+  changes a site itself: its buttons send Claude a prompt, and it reads `wpsync status --local`.
 - **Raise the plugin version for every change that ships** (`claude-plugin/.claude-plugin/plugin.json`,
   both `package.json` files and `VERSION` in `apps/wpsync/src/main.ts`; a unit test keeps them
   equal). Claude Code caches plugins by version: with the same number, `claude plugin update`

@@ -24,7 +24,7 @@ import { notify } from "./progress";
 import { MacKeychain } from "./secrets";
 import { normalizeUrl } from "./site";
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 const USAGE = `wpsync ${VERSION}
 
@@ -46,8 +46,9 @@ Usage:
   wpsync doctor --local | <site-url> [--json]
       Check this Mac, or a site, before anything changes; lists every problem with its fix.
 
-  wpsync status [--dir <folder>] [--json]
-      Where a site project stands, and what to do next.
+  wpsync status [--dir <folder>] [--json] [--local]
+      Where a site project stands, and what to do next. --local contacts nothing (no
+      check of the live site's key or Wordfence).
 
   wpsync verify [--dir <folder>] [--json]
       Check the local copy works: pages, wp-admin, permalinks, leftover live addresses,
@@ -266,7 +267,7 @@ async function runDoctor(args: Parsed): Promise<number> {
 }
 
 async function runStatus(args: Parsed): Promise<void> {
-  const result = await status({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http") }, new MacKeychain());
+  const result = await status({ dir: stringFlag(args, "dir"), allowHttp: args.flags.has("allow-http"), local: args.flags.has("local") }, new MacKeychain());
   const lines = [`Folder   ${result.dir}`, `Phase    ${result.phase}`];
   const connection = !result.connected
     ? " (not connected)"
