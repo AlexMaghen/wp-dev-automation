@@ -11,7 +11,9 @@
  * - Every button that does something hands it to Claude as a prompt ("publish to live"), so the
  *   wp-dev skill runs it with its explanations, Wordfence steps and macOS confirmation dialogs.
  *   The panel itself never changes a site or this Mac.
- * - It opens by itself in a folder that is a wp-dev site or is empty; /wp-dev opens it anywhere.
+ * - It opens by itself only in a folder that is a wp-dev site; /wp-dev opens it anywhere. Every
+ *   command gets the session's folder explicitly: a child's default working directory isn't
+ *   reliably the session's (0.5.0 opened the panel in every session because of it).
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
@@ -75,7 +77,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     const now = await refreshStatus($)
-    if (now.phase !== 'no-project' || now.isEmpty) {
+    if (now.phase !== 'no-project') {
       await refreshMac($)
       void $.ui.open({ id: PANE, title: TITLE })
     }
@@ -218,7 +220,7 @@ export const register: Register = on => {
 /** The plugin's own wpsync. */
 async function wpsync($: EngineInterface, args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const env = await $.process.hookEnv()
-  return $.process.run([`${env.CLAUDE_PLUGIN_ROOT}/bin/wpsync`, ...args], { timeoutMs: 30_000 })
+  return $.process.run([`${env.CLAUDE_PLUGIN_ROOT}/bin/wpsync`, ...args], { cwd: await $.session.cwd(), timeoutMs: 30_000 })
 }
 
 async function refreshAll($: EngineInterface): Promise<void> {
@@ -231,14 +233,14 @@ async function refreshStatus($: EngineInterface): Promise<SiteStatus> {
   const dir = await $.session.cwd()
   let next: SiteStatus
   try {
-    const run = await wpsync($, ['status', '--json', '--local'])
+    const run = await wpsync($, ['status', '--json', '--local', '--dir', dir])
     next = run.exitCode === 0
       ? (JSON.parse(run.stdout) as SiteStatus)
       : { phase: 'no-project', dir, error: (run.stderr || run.stdout).trim().split('\n').pop() }
   } catch (error) {
     next = { phase: 'no-project', dir, error: String(error) }
   }
-  if (next.phase === 'no-project') next = { ...next, isEmpty: await folderIsEmpty($) }
+  if (next.phase === 'no-project') next = { ...next, isEmpty: await folderIsEmpty($, dir) }
   await update($, status, () => next)
   return next
 }
@@ -265,8 +267,8 @@ async function refreshMac($: EngineInterface): Promise<void> {
 }
 
 /** Is the session's folder empty (a new site's folder)? .DS_Store and .claude don't count. */
-async function folderIsEmpty($: EngineInterface): Promise<boolean> {
-  const run = await $.process.run(['ls', '-A'], { timeoutMs: 5_000 }).catch(() => null)
+async function folderIsEmpty($: EngineInterface, dir: string): Promise<boolean> {
+  const run = await $.process.run(['ls', '-A', dir], { timeoutMs: 5_000 }).catch(() => null)
   if (!run || run.exitCode !== 0) return false
   return run.stdout.split('\n').filter(name => name && name !== '.DS_Store' && name !== '.claude').length === 0
 }

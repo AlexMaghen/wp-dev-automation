@@ -17,11 +17,12 @@ type World = {
 const ok = (stdout: string, exitCode = 0) => ({ exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false })
 
 /** Stands in for wpsync and the rest of the engine around the panel. */
-function engine(on: Parameters<Parameters<typeof test>[1]>[1], world: World, sent: string[], opened: string[] = []) {
+function engine(on: Parameters<Parameters<typeof test>[1]>[1], world: World, sent: string[], opened: string[] = [], runs: string[][] = []) {
   on('process.hookEnv', () => ({ value: { CLAUDE_PLUGIN_ROOT: '/plugin' } }))
   on('session.cwd', () => ({ value: '/somewhere' }))
   on('clock.every', () => ({ value: () => undefined }))
   on('process.run', (_, e) => {
+    runs.push(e.argv)
     const [cmd, sub] = e.argv
     if (cmd === 'ls') return { value: ok(world.ls ?? 'something\n') }
     if (sub === 'status') return { value: ok(JSON.stringify(world.status)) }
@@ -124,9 +125,20 @@ test('/wp-dev in any folder opens the panel: missing prerequisites, a new site, 
   await ui.unmount()
 })
 
-test('an empty folder opens the panel by itself', async ($, on) => {
+test('the panel opens by itself only in a site\'s folder, never in an empty or other folder', async ($, on) => {
   const opened: string[] = []
-  engine(on, { status: { phase: 'no-project', dir: '/new' }, ls: '.DS_Store\n' }, [], opened)
+  const runs: string[][] = []
+  engine(on, { status: { phase: 'no-project', dir: '/new' }, ls: '.DS_Store\n' }, [], opened, runs)
+  await start($)
+  expect(opened).toEqual([])
+  // Every command names the session's folder.
+  expect(runs.find(r => r[1] === 'status')).toContain('/somewhere')
+  expect(runs.find(r => r[0] === 'ls')).toContain('/somewhere')
+})
+
+test('a site\'s folder opens the panel by itself', async ($, on) => {
+  const opened: string[] = []
+  engine(on, { status: WORK }, [], opened)
   await start($)
   expect(opened).toEqual(['wp-dev'])
 })
